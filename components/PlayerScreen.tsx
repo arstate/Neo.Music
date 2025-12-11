@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 import { VideoQuality, LoopMode } from '../types';
 
@@ -7,11 +7,12 @@ interface PlayerScreenProps {
   showVideo: boolean;
   videoQuality: VideoQuality;
   loopMode: LoopMode;
-  volume: number; // New Prop
+  volume: number;
   onEnd: () => void;
   onPlay: () => void;
   onPause: () => void;
   setPlayerRef: (player: any) => void;
+  containerRef: React.RefObject<HTMLDivElement>; // Added ref for fullscreen
 }
 
 const PlayerScreen: React.FC<PlayerScreenProps> = ({
@@ -23,9 +24,11 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
   onEnd,
   onPlay,
   onPause,
-  setPlayerRef
+  setPlayerRef,
+  containerRef
 }) => {
   const playerRef = useRef<any>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Helper to resolve custom qualities (ZERO/10p) to API supported ones
   const getApiQuality = (q: VideoQuality) => {
@@ -39,6 +42,18 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
       target.setPlaybackQuality(apiQuality);
     }
   };
+
+  // Handle Fullscreen Change Listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   // Handle Quality Updates
   useEffect(() => {
@@ -66,17 +81,14 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     // 1 = Playing, 2 = Paused, 3 = Buffering, 0 = Ended
     if (event.data === 1) {
        onPlay();
-       // Aggressively enforce quality on Play start (YouTube often resets it)
        applyQuality(event.target);
     }
     if (event.data === 3) {
-      // Also enforce during buffering
       applyQuality(event.target);
     }
     if (event.data === 2) onPause();
     if (event.data === 0) {
       if (loopMode === LoopMode.ONE) {
-        // seekTo(seconds: number, allowSeekAhead: boolean)
         event.target.seekTo(0, true);
         event.target.playVideo();
       } else {
@@ -94,12 +106,16 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
       modestbranding: 1,
       rel: 0,
       iv_load_policy: 3, // Hide annotations
-      playsinline: 1, // Crucial for mobile inline/background playback
+      playsinline: 1,
+      fs: 0, // Hide YouTube's native fullscreen button since we use ours
     },
   };
 
   return (
-    <div className="relative w-full aspect-video bg-black border-4 border-black overflow-hidden">
+    <div 
+      ref={containerRef}
+      className="relative w-full aspect-video bg-black border-4 border-black overflow-hidden"
+    >
       
       {/* 1. Placeholder Layer (Visible when showVideo is FALSE) */}
       <div 
@@ -115,7 +131,6 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
       </div>
 
       {/* 2. YouTube Player Layer */}
-      {/* We use opacity-0 when hidden, NOT display:none, to keep audio stream active on mobile */}
       <div className={`relative w-full h-full ${showVideo ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
         <YouTube
           videoId={videoId}
@@ -126,15 +141,15 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
           iframeClassName="h-full w-full"
         />
         
-        {/* INTERACTION BLOCKER: Prevents hover states on iframe (hides Watermark/Title) */}
-        {showVideo && (
+        {/* INTERACTION BLOCKER: 
+            Prevents hover states on iframe (hides Watermark/Title).
+            HIDDEN when in fullscreen so user can access YouTube settings. 
+        */}
+        {showVideo && !isFullscreen && (
            <div className="absolute inset-0 z-30 bg-transparent w-full h-full"></div>
         )}
 
-        {/* Overlay for CRT effect (Only visible when video is showing) */}
-        {showVideo && (
-           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]"></div>
-        )}
+        {/* CRT Noise texture removed as requested */}
       </div>
 
     </div>

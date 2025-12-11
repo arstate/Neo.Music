@@ -23,7 +23,10 @@ const App: React.FC = () => {
 
   // Saved Playlists (Library)
   const [savedPlaylists, setSavedPlaylists] = useState<SavedPlaylist[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile Toggle
+  
+  // Sidebar State
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false); // Mobile Toggle
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true); // Desktop Toggle
 
   // Modals State
   const [modalMode, setModalMode] = useState<'NONE' | 'ADD_TO_PLAYLIST' | 'CREATE_PLAYLIST' | 'EDIT_PLAYLIST'>('NONE');
@@ -60,6 +63,9 @@ const App: React.FC = () => {
 
   // Wake Lock Ref
   const wakeLockRef = useRef<any>(null);
+
+  // Player Container Ref (For Fullscreen)
+  const playerContainerRef = useRef<HTMLDivElement>(null);
 
   // Refs for MediaSession
   const playlistRef = useRef(playlist);
@@ -406,7 +412,7 @@ const App: React.FC = () => {
       alert('Playlist is empty!');
     }
     if (window.innerWidth < 768) {
-      setIsSidebarOpen(false);
+      setIsMobileSidebarOpen(false);
     }
   };
 
@@ -558,6 +564,19 @@ const App: React.FC = () => {
     }
   };
 
+  // Fullscreen Handler
+  const toggleFullscreen = () => {
+    if (!playerContainerRef.current) return;
+
+    if (!document.fullscreenElement) {
+      playerContainerRef.current.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
   const effectiveQuality = (isDataSaver || isBackgroundMode || !showVideo) 
     ? VideoQuality.ZERO 
     : videoQuality;
@@ -661,15 +680,19 @@ const App: React.FC = () => {
       {/* Top Section: Sidebar + Main Content */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         
-        {/* SIDEBAR (Library) - Hidden on Mobile unless toggled (logic for toggle not fully impl here for mobile, but structurally ready) */}
-        <aside className="hidden w-80 flex-col border-r-4 border-black bg-white md:flex">
-          <div className="border-b-4 border-black bg-neo-yellow p-6">
+        {/* SIDEBAR (Library) - Desktop (Toggleable & Wider: w-96) */}
+        <aside 
+          className={`hidden flex-col border-r-4 border-black bg-white transition-[width,opacity] duration-300 ease-in-out md:flex ${
+            isDesktopSidebarOpen ? 'w-96 opacity-100' : 'w-0 opacity-0 overflow-hidden border-r-0'
+          }`}
+        >
+          <div className="border-b-4 border-black bg-neo-yellow p-6 min-w-[24rem]">
             <h1 className="font-display text-2xl font-black uppercase tracking-tighter">
               NEO<span className="text-neo-pink">.</span>MUSIC
             </h1>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-6">
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-6 min-w-[24rem]">
              
              {/* SAVED PLAYLISTS */}
              <div>
@@ -722,11 +745,28 @@ const App: React.FC = () => {
           {/* Top Bar: Search */}
           <div className="sticky top-0 z-40 w-full border-b-4 border-black bg-white p-2 sm:p-4">
             <div className="flex items-center gap-2">
+                
+                {/* Mobile Menu Button */}
                 <div className="md:hidden flex items-center pr-2 font-display font-black text-lg">N.M</div>
                 
-                {/* Mobile Library Toggle (Simple placeholder logic) */}
+                {/* Desktop Toggle Button */}
                 <button 
-                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  onClick={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
+                  className="hidden md:flex items-center justify-center h-10 w-10 border-2 border-black bg-white hover:bg-neo-yellow mr-2"
+                  title="Toggle Library"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                     {isDesktopSidebarOpen ? (
+                       <path strokeLinecap="square" strokeLinejoin="miter" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                     ) : (
+                       <path strokeLinecap="square" strokeLinejoin="miter" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                     )}
+                  </svg>
+                </button>
+
+                {/* Mobile Library Toggle */}
+                <button 
+                  onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                   className="md:hidden border-2 border-black p-1 bg-neo-yellow"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
@@ -774,11 +814,11 @@ const App: React.FC = () => {
           </div>
 
           {/* MOBILE DRAWER (For Library) */}
-          {isSidebarOpen && (
+          {isMobileSidebarOpen && (
             <div className="md:hidden absolute inset-0 z-50 bg-white flex flex-col p-4 animate-in slide-in-from-left duration-200">
                <div className="flex justify-between items-center mb-6 border-b-4 border-black pb-2">
                  <h2 className="font-display font-black text-2xl">LIBRARY</h2>
-                 <button onClick={() => setIsSidebarOpen(false)} className="border-2 border-black px-2 font-bold bg-red-500 text-white">X</button>
+                 <button onClick={() => setIsMobileSidebarOpen(false)} className="border-2 border-black px-2 font-bold bg-red-500 text-white">X</button>
                </div>
                
                <div className="flex-1 overflow-y-auto">
@@ -793,7 +833,7 @@ const App: React.FC = () => {
                         <div className="text-xs text-gray-500">{pl.videos.length} Tracks</div>
                       </div>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); loadPlaylistToQueue(pl); setIsSidebarOpen(false); }}
+                        onClick={(e) => { e.stopPropagation(); loadPlaylistToQueue(pl); setIsMobileSidebarOpen(false); }}
                         className="bg-black text-white px-3 py-1 text-xs font-bold"
                       >
                         PLAY
@@ -821,6 +861,7 @@ const App: React.FC = () => {
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => {}} 
                       setPlayerRef={setPlayerObj}
+                      containerRef={playerContainerRef}
                     />
                 ) : (
                   <div className="flex h-48 sm:h-96 w-full items-center justify-center bg-neo-blue text-white">
@@ -888,6 +929,7 @@ const App: React.FC = () => {
                setVolume={setVolume}
                installPrompt={installPrompt}
                handleInstallClick={handleInstallClick}
+               onToggleFullscreen={toggleFullscreen}
              />
           </div>
         </div>
