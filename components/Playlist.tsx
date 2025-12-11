@@ -6,9 +6,10 @@ interface PlaylistProps {
   currentIndex: number;
   onSelect: (index: number) => void;
   onDelete: (index: number) => void;
+  onAddToLibrary: (video: VideoResult) => void; // New prop
 }
 
-const Playlist: React.FC<PlaylistProps> = ({ videos, currentIndex, onSelect, onDelete }) => {
+const Playlist: React.FC<PlaylistProps> = ({ videos, currentIndex, onSelect, onDelete, onAddToLibrary }) => {
   if (videos.length === 0) {
     return (
       <div className="flex h-32 flex-col items-center justify-center border-4 border-black border-dashed bg-gray-50 p-2 text-center font-mono text-xs text-gray-500">
@@ -19,10 +20,6 @@ const Playlist: React.FC<PlaylistProps> = ({ videos, currentIndex, onSelect, onD
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="mb-2 flex items-center justify-between">
-         <span className="font-mono text-xs font-bold uppercase text-gray-500">Queue ({videos.length})</span>
-      </div>
-      
       {videos.map((video, index) => (
         <div
           key={`${video.id}-${index}`}
@@ -45,16 +42,29 @@ const Playlist: React.FC<PlaylistProps> = ({ videos, currentIndex, onSelect, onD
             <p className="truncate text-[10px] font-bold text-gray-500 group-hover:text-black">{video.channelTitle}</p>
           </div>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(index);
-            }}
-            className="flex h-5 w-5 items-center justify-center border border-black bg-white text-[10px] font-bold hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-            title="Remove"
-          >
-            X
-          </button>
+          {/* Action Buttons Container */}
+          <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToLibrary(video);
+              }}
+              className="flex h-6 w-6 items-center justify-center border border-black bg-neo-blue text-white text-[10px] font-bold hover:bg-blue-600"
+              title="Add to Playlist"
+            >
+              +
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(index);
+              }}
+              className="flex h-6 w-6 items-center justify-center border border-black bg-white text-[10px] font-bold hover:bg-red-500 hover:text-white"
+              title="Remove from Queue"
+            >
+              X
+            </button>
+          </div>
         </div>
       ))}
     </div>

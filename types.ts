@@ -5,6 +5,13 @@ export interface VideoResult {
   channelTitle: string;
 }
 
+export interface SavedPlaylist {
+  id: string;
+  name: string;
+  videos: VideoResult[];
+  createdAt: number;
+}
+
 export enum VideoQuality {
   ZERO = 'zero',   // 10p (Custom internal mapping to tiny)
   TINY = 'tiny',   // 144p
