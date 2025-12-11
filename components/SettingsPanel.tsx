@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { VideoQuality, AudioQuality, LoopMode } from '../types';
 
 interface SettingsPanelProps {
@@ -38,6 +38,26 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   installPrompt,
   handleInstallClick
 }) => {
+  const [isVolumeOpen, setIsVolumeOpen] = useState(false);
+  const volumeRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside to close volume slider
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (volumeRef.current && !volumeRef.current.contains(event.target as Node)) {
+        setIsVolumeOpen(false);
+      }
+    };
+
+    if (isVolumeOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isVolumeOpen]);
+
   return (
     <div className="flex flex-nowrap items-center gap-1 sm:gap-2">
 
@@ -52,17 +72,41 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         </button>
       )}
       
-      {/* Volume Control */}
-      <div className="hidden sm:flex items-center gap-1 border-2 border-black bg-white px-2 h-8 mr-1">
-        <span className="text-[10px] font-bold">VOL</span>
-        <input 
-          type="range" 
-          min="0" 
-          max="100" 
-          value={volume} 
-          onChange={(e) => setVolume(Number(e.target.value))}
-          className="w-16 h-1 appearance-none bg-gray-300 accent-black cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:bg-black"
-        />
+      {/* Volume Control (Icon -> Slider Toggle) */}
+      <div ref={volumeRef} className="relative flex items-center mr-1">
+        {!isVolumeOpen ? (
+          <button
+            onClick={() => setIsVolumeOpen(true)}
+            className="flex h-8 w-8 items-center justify-center border-2 border-black bg-white hover:bg-neo-yellow transition-colors"
+            title="Volume"
+          >
+            {volume === 0 ? (
+               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
+                 <path strokeLinecap="square" strokeLinejoin="miter" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+               </svg>
+            ) : (
+               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
+                 <path strokeLinecap="square" strokeLinejoin="miter" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+               </svg>
+            )}
+          </button>
+        ) : (
+          <div className="flex h-8 items-center gap-2 border-2 border-black bg-white px-2 shadow-neo-xs animate-in fade-in zoom-in duration-100 origin-left">
+             <button onClick={() => setIsVolumeOpen(false)} className="hover:text-neo-pink">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                 <path strokeLinecap="square" strokeLinejoin="miter" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+               </svg>
+             </button>
+             <input 
+              type="range" 
+              min="0" 
+              max="100" 
+              value={volume} 
+              onChange={(e) => setVolume(Number(e.target.value))}
+              className="w-20 sm:w-24 h-1 appearance-none bg-gray-300 accent-black cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-white hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
+            />
+          </div>
+        )}
       </div>
 
       {/* Background / Minimize Button */}
