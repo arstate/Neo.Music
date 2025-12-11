@@ -32,6 +32,9 @@ const App: React.FC = () => {
   const currentVideo = playlist[currentIndex];
   const timerRef = useRef<number | null>(null);
   const debounceRef = useRef<number | null>(null);
+  
+  // Audio Context Ref for iOS Background Hack
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   // Initial Search for "dj tiktok"
   useEffect(() => {
@@ -118,6 +121,39 @@ const App: React.FC = () => {
     }
   }, [isPlaying]);
 
+  // --- iOS BACKGROUND AUDIO HACK ---
+  // This plays a silent sound using Web Audio API. 
+  // This tricks iOS into thinking the app is a dedicated music player, preventing suspension.
+  const initSilentAudio = () => {
+    if (!audioContextRef.current) {
+      // @ts-ignore - Handle webkit prefix for older Safari
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        audioContextRef.current = ctx;
+      }
+    }
+
+    const ctx = audioContextRef.current;
+    if (ctx) {
+       // Create a silent oscillator
+       const oscillator = ctx.createOscillator();
+       const gainNode = ctx.createGain();
+       
+       // Nearly silent gain (not 0, or browser might optimize it away)
+       gainNode.gain.value = 0.001; 
+       
+       oscillator.connect(gainNode);
+       gainNode.connect(ctx.destination);
+       
+       oscillator.start();
+       // Stop after a tiny fraction of a second, or loop it?
+       // For iOS, just engaging the context is usually enough, 
+       // but running a silent loop is safer for long sessions.
+       // We'll leave the context 'running'.
+    }
+  };
+
 
   // Handle Search Input Change with Debounce for Suggestions
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,6 +219,10 @@ const App: React.FC = () => {
     if (isPlaying) {
       playerObj.pauseVideo();
     } else {
+      // On Resume, also ensure audio context is running (iOS policy)
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
       playerObj.playVideo();
     }
   };
@@ -219,8 +259,6 @@ const App: React.FC = () => {
     setIsDataSaver(newState);
     if (newState) {
       setShowVideo(false); 
-      // Ensure BG mode is off if we just want data saver, or keep it logic separate.
-      // Current design: Data Saver and BG Mode are friends.
     } else if (!isBackgroundMode) {
       setShowVideo(true);
     }
@@ -232,31 +270,65 @@ const App: React.FC = () => {
     setIsBackgroundMode(newState);
     
     if (newState) {
+        // ACTIVATING BACKGROUND MODE
         setShowVideo(false);
-        // Browser notification permissions might be requested here in a real PWA
+        initSilentAudio(); // FORCE iOS Audio Context
+        
+        // Attempt to "Minimize" (Best effort for UX)
+        // Note: Browsers generally block window.close() for scripts that didn't open the window.
+        // We simulate this by defocusing.
+        try {
+          window.blur(); 
+        } catch (e) {}
+
     } else {
-        // Only restore video if Data Saver is OFF
+        // DEACTIVATING
         if (!isDataSaver) setShowVideo(true);
     }
   };
 
   // Effective Quality Logic
-  // Uses AudioQuality if Data Saver OR Background Mode is on
   const effectiveQuality = (isDataSaver || isBackgroundMode) ? (audioQuality as unknown as VideoQuality) : videoQuality;
 
   return (
     // Use h-[100dvh] for better mobile browser support
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">
       
-      {/* Background Mode Notification Toast */}
+      {/* BACKGROUND MODE OVERLAY (Simulates "Minimized" state visually and instructs user) */}
       {isBackgroundMode && (
-          <div className="fixed top-16 right-4 left-4 z-[60] border-4 border-black bg-purple-500 p-3 shadow-neo text-white sm:w-80 sm:left-auto animate-bounce">
-              <div className="flex items-start gap-3">
-                  <div className="bg-white text-black p-1 font-bold text-xs border border-black">BG</div>
-                  <div>
-                    <h3 className="font-bold text-sm uppercase">Background Active</h3>
-                    <p className="text-xs mt-1">Video hidden. Audio playing. You can now switch tabs or minimize browser.</p>
+          <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-neo-yellow p-6 text-center">
+              <div className="max-w-md border-4 border-black bg-white p-6 shadow-neo animate-bounce-slow">
+                  <div className="mb-4 flex justify-center text-purple-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-16 h-16">
+                      <path strokeLinecap="square" strokeLinejoin="miter" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
+                    </svg>
                   </div>
+                  <h1 className="font-display text-2xl font-black uppercase mb-2">Background Mode ON</h1>
+                  <p className="font-mono text-sm mb-6 font-bold">
+                      Audio is locked and optimized. <br/>
+                      You can now Swipe Home or lock your screen.
+                  </p>
+                  
+                  <div className="flex flex-col gap-2">
+                    <button 
+                        onClick={() => {
+                            // Try to simulate a "home" action by focusing out (rarely works but good for intent)
+                            window.open('', '_self');
+                        }}
+                        className="border-2 border-black bg-gray-200 p-2 text-xs text-gray-500 font-bold uppercase cursor-not-allowed"
+                    >
+                        (Swipe Up to Minimize)
+                    </button>
+                    <button 
+                        onClick={toggleBackgroundMode}
+                        className="mt-2 border-4 border-black bg-neo-pink px-6 py-3 font-display font-bold text-white shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all"
+                    >
+                        RETURN TO APP
+                    </button>
+                  </div>
+              </div>
+              <div className="absolute bottom-10 animate-pulse font-mono text-xs font-bold">
+                  PLAYING: {currentVideo ? currentVideo.title.substring(0, 30) + '...' : 'AUDIO STREAM'}
               </div>
           </div>
       )}
