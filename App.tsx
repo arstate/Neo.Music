@@ -444,7 +444,11 @@ const App: React.FC = () => {
     }
   };
 
-  const effectiveQuality = (isDataSaver || isBackgroundMode) ? (audioQuality as unknown as VideoQuality) : videoQuality;
+  // LOGIC FIX: If video is hidden OR data saver OR background mode, FORCE 'tiny' (10p/144p).
+  // This satisfies the "mode no preview pengaturan resolusinya di set ke 10p" requirement.
+  const effectiveQuality = (!showVideo || isDataSaver || isBackgroundMode) 
+    ? VideoQuality.TINY 
+    : videoQuality;
 
   return (
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">

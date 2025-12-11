@@ -51,7 +51,11 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
 
   const onPlayerStateChange: YouTubeProps['onStateChange'] = (event) => {
     // 1 = Playing, 2 = Paused, 0 = Ended
-    if (event.data === 1) onPlay();
+    if (event.data === 1) {
+      onPlay();
+      // FORCE quality set on play start to ensure it respects the setting
+      event.target.setPlaybackQuality(videoQuality);
+    }
     if (event.data === 2) onPause();
     if (event.data === 0) {
       if (loopMode === LoopMode.ONE) {

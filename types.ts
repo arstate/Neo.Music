@@ -6,16 +6,17 @@ export interface VideoResult {
 }
 
 export enum VideoQuality {
-  SMALL = 'small',
-  MEDIUM = 'medium',
-  LARGE = 'large',
+  TINY = 'tiny',     // 144p (We treat this as 10p/Super Low)
+  SMALL = 'small',   // 240p
+  MEDIUM = 'medium', // 360p
+  LARGE = 'large',   // 480p
   HD720 = 'hd720',
 }
 
 export enum AudioQuality {
-  LOW = 'small',   // 144p - Saves most data
-  MID = 'medium',  // 360p - Balanced
-  HIGH = 'hd720',  // 720p - Best Audio
+  LOW = 'tiny',    // 144p - Saves MAX data
+  MID = 'small',   // 240p - Balanced
+  HIGH = 'medium', // 360p - Good Audio
 }
 
 export enum LoopMode {
