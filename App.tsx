@@ -302,16 +302,19 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if ('mediaSession' in navigator && currentVideo) {
+      // Defensive coding to filter out empty images which might cause "Cannot read properties of null (reading 'src')" in some browsers
+      const validArtwork = [
+        { src: currentVideo.thumbnail, sizes: '96x96', type: 'image/jpg' },
+        { src: currentVideo.thumbnail, sizes: '128x128', type: 'image/jpg' },
+        { src: currentVideo.thumbnail, sizes: '192x192', type: 'image/jpg' },
+        { src: currentVideo.thumbnail, sizes: '512x512', type: 'image/jpg' },
+      ].filter(img => img.src && img.src.trim() !== '');
+
       navigator.mediaSession.metadata = new MediaMetadata({
         title: currentVideo.title,
         artist: currentVideo.channelTitle,
         album: 'NEO MUSIC',
-        artwork: [
-          { src: currentVideo.thumbnail, sizes: '96x96', type: 'image/jpg' },
-          { src: currentVideo.thumbnail, sizes: '128x128', type: 'image/jpg' },
-          { src: currentVideo.thumbnail, sizes: '192x192', type: 'image/jpg' },
-          { src: currentVideo.thumbnail, sizes: '512x512', type: 'image/jpg' },
-        ]
+        artwork: validArtwork
       });
     }
   }, [currentVideo]);

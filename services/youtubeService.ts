@@ -4,6 +4,9 @@ import { VideoResult } from '../types';
 // Track current key index globally across the session
 let currentKeyIndex = 0;
 
+// Fallback placeholder to prevent empty src errors
+const PLACEHOLDER_THUMBNAIL = 'https://i.ytimg.com/mqdefault.jpg'; // Generic YouTube fallback
+
 export const searchVideos = async (query: string, limit = 10): Promise<VideoResult[]> => {
   if (!query) return [];
 
@@ -42,7 +45,7 @@ export const searchVideos = async (query: string, limit = 10): Promise<VideoResu
         .map((item: any) => ({
           id: item.id.videoId,
           title: item.snippet?.title || 'Untitled',
-          thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.default?.url || '',
+          thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.default?.url || PLACEHOLDER_THUMBNAIL,
           channelTitle: item.snippet?.channelTitle || 'Unknown Channel',
         }));
 
@@ -67,7 +70,8 @@ export const searchVideos = async (query: string, limit = 10): Promise<VideoResu
 
 export const getSearchSuggestions = (query: string): Promise<string[]> => {
   return new Promise((resolve) => {
-    if (!query.trim()) {
+    // Safety checks: Ensure query exists and document/body are available
+    if (!query.trim() || typeof document === 'undefined' || !document.body) {
         resolve([]);
         return;
     }
