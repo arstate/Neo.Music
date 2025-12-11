@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { VideoResult, VideoQuality, LoopMode } from './types';
 import { searchVideos } from './services/youtubeService';
 import { MOCK_SEARCH_RESULTS } from './constants';
@@ -27,9 +27,6 @@ const App: React.FC = () => {
     if (!query.trim()) return;
     const results = await searchVideos(query);
     if (results.length > 0) {
-      // Add results to playlist instead of replacing? Let's append for "Queue" feel, or replace.
-      // For this style, let's just replace the playlist with search results to keep it simple, 
-      // or add to queue. Let's add to queue.
       setPlaylist(prev => [...prev, ...results]);
     }
     setQuery('');
@@ -49,7 +46,6 @@ const App: React.FC = () => {
 
   const handleVideoEnd = () => {
     if (loopMode === LoopMode.ONE) {
-      // Handled in PlayerScreen via seekTo(0) usually, but double check here
       playerObj?.seekTo(0);
       playerObj?.playVideo();
     } else {
@@ -77,40 +73,119 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 sm:p-8 font-mono text-black selection:bg-neo-pink selection:text-white">
-      <div className="mx-auto max-w-3xl">
+    <div className="flex h-screen w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">
+      
+      {/* Top Section: Sidebar + Main Content */}
+      <div className="flex flex-1 overflow-hidden">
         
-        {/* Header */}
-        <header className="mb-8 border-4 border-black bg-white p-6 shadow-neo">
-          <h1 className="text-center font-display text-4xl font-black uppercase tracking-tighter sm:text-5xl md:text-6xl">
-            Neo<span className="text-neo-pink">.</span>Music
-          </h1>
-          <p className="mt-2 text-center text-xs font-bold uppercase tracking-widest text-gray-500">
-            Neo-Brutalist Audio/Visual Interface
-          </p>
-        </header>
+        {/* SIDEBAR (Library/Queue) */}
+        <aside className="hidden w-80 flex-col border-r-4 border-black bg-white md:flex">
+          {/* Logo */}
+          <div className="border-b-4 border-black bg-neo-yellow p-6">
+            <h1 className="font-display text-2xl font-black uppercase tracking-tighter">
+              NEO<span className="text-neo-pink">.</span>MUSIC
+            </h1>
+          </div>
+          
+          {/* Playlist Component fills the rest */}
+          <div className="flex-1 overflow-y-auto p-4">
+             <Playlist 
+                videos={playlist} 
+                currentIndex={currentIndex} 
+                onSelect={setCurrentIndex}
+                onDelete={removeTrack}
+              />
+          </div>
+        </aside>
 
-        {/* Search Bar */}
-        <form onSubmit={handleSearch} className="mb-8 flex gap-2">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="INSERT SEARCH TERM..."
-            className="flex-1 border-4 border-black bg-white p-4 font-bold uppercase outline-none placeholder:text-gray-400 focus:bg-neo-yellow focus:placeholder:text-black"
-          />
-          <button
-            type="submit"
-            className="border-4 border-black bg-neo-green px-6 font-display font-bold uppercase text-black shadow-neo transition-transform active:translate-y-1 active:shadow-none"
-          >
-            Search
-          </button>
-        </form>
+        {/* MAIN CONTENT */}
+        <main className="flex flex-1 flex-col bg-[#e5e7eb] relative">
+          {/* Top Bar: Search */}
+          <div className="sticky top-0 z-20 flex w-full gap-2 border-b-4 border-black bg-white p-4">
+             {/* Mobile Logo (Visible only on small screens) */}
+             <div className="md:hidden flex items-center pr-2 font-display font-black">N.M</div>
 
-        {/* Main Interface Grid */}
-        <div className="mb-8">
-            
-          {/* Settings Toggle */}
+            <form onSubmit={handleSearch} className="flex flex-1 gap-2">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="SEARCH YOUTUBE..."
+                className="w-full flex-1 border-4 border-black bg-white p-2 font-bold uppercase outline-none placeholder:text-gray-400 focus:bg-neo-yellow focus:placeholder:text-black"
+              />
+              <button
+                type="submit"
+                className="hidden border-4 border-black bg-neo-green px-6 font-display font-bold uppercase text-black shadow-neo-sm transition-transform active:translate-y-1 active:shadow-none sm:block"
+              >
+                Find
+              </button>
+            </form>
+          </div>
+
+          {/* Content Area */}
+          <div className="flex-1 overflow-y-auto p-4 md:p-8">
+            <div className="mx-auto max-w-4xl">
+              {/* Video Player Container */}
+              <div className="mb-6 w-full border-4 border-black bg-black shadow-neo">
+                {currentVideo ? (
+                    <PlayerScreen 
+                      videoId={currentVideo.id}
+                      showVideo={showVideo}
+                      videoQuality={videoQuality}
+                      loopMode={loopMode}
+                      onEnd={handleVideoEnd}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      setPlayerRef={setPlayerObj}
+                    />
+                ) : (
+                  <div className="flex h-64 sm:h-96 w-full items-center justify-center bg-neo-blue text-white">
+                    <div className="text-center">
+                       <h2 className="font-display text-4xl font-black">NO TAPE</h2>
+                       <p className="mt-2 font-mono">USE SEARCH TO INSERT CASSETTE</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Mobile View Playlist (Only shows on mobile) */}
+              <div className="md:hidden">
+                 <Playlist 
+                    videos={playlist} 
+                    currentIndex={currentIndex} 
+                    onSelect={setCurrentIndex}
+                    onDelete={removeTrack}
+                  />
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* FOOTER (Controls & Settings) */}
+      <footer className="z-50 flex h-auto flex-col gap-4 border-t-4 border-black bg-white p-2 sm:h-24 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:px-4 shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)]">
+        
+        {/* Left: Current Info */}
+        <div className="w-full sm:w-1/3">
+           <div className="overflow-hidden border-2 border-black bg-neo-yellow p-1 sm:p-2">
+              <div className="whitespace-nowrap font-mono text-xs sm:text-sm font-bold text-black animate-marquee">
+                {currentVideo ? `${currentVideo.title} /// ${currentVideo.channelTitle}` : "WAITING FOR INPUT..."}
+              </div>
+            </div>
+        </div>
+
+        {/* Center: Controls */}
+        <div className="flex w-full justify-center sm:w-1/3">
+           <Controls 
+              isPlaying={isPlaying} 
+              onPlayPause={togglePlayPause} 
+              onNext={playNext} 
+              onPrev={playPrev}
+            />
+        </div>
+
+        {/* Right: Settings (Volume/Config style) */}
+        <div className="flex w-full justify-center sm:w-1/3 sm:justify-end">
           <SettingsPanel 
             showVideo={showVideo} 
             setShowVideo={setShowVideo}
@@ -119,47 +194,8 @@ const App: React.FC = () => {
             loopMode={loopMode}
             setLoopMode={setLoopMode}
           />
-
-          {/* Video Player Area */}
-          <div className="mb-4">
-             {currentVideo ? (
-                <PlayerScreen 
-                  videoId={currentVideo.id}
-                  showVideo={showVideo}
-                  videoQuality={videoQuality}
-                  loopMode={loopMode}
-                  onEnd={handleVideoEnd}
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                  setPlayerRef={setPlayerObj}
-                />
-             ) : (
-               <div className="flex h-64 items-center justify-center border-4 border-black bg-black text-white">
-                  <span className="animate-pulse font-mono">NO SIGNAL</span>
-               </div>
-             )}
-          </div>
-
-          {/* Controls */}
-          <Controls 
-            isPlaying={isPlaying} 
-            onPlayPause={togglePlayPause} 
-            onNext={playNext} 
-            onPrev={playPrev}
-            currentTitle={currentVideo?.title || ''}
-          />
-
         </div>
-
-        {/* Playlist */}
-        <Playlist 
-          videos={playlist} 
-          currentIndex={currentIndex} 
-          onSelect={setCurrentIndex}
-          onDelete={removeTrack}
-        />
-
-      </div>
+      </footer>
     </div>
   );
 };

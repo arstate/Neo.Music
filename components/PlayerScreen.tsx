@@ -65,19 +65,41 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     },
   };
 
+  // If video is hidden, we render a placeholder art instead of hiding the div completely, 
+  // to maintain structure in the main view.
+  if (!showVideo) {
+      return (
+        <div className="relative w-full h-full aspect-video bg-neo-yellow border-black flex items-center justify-center overflow-hidden">
+             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-black to-transparent"></div>
+             <div className="z-10 text-center p-4">
+                 <h3 className="font-display text-4xl sm:text-6xl font-black text-black opacity-80 uppercase tracking-tighter">Audio Only</h3>
+                 <div className="mt-4 inline-block border-4 border-black bg-white px-4 py-1 font-mono text-sm font-bold animate-pulse">
+                    PLAYING...
+                 </div>
+             </div>
+             {/* Hidden player to keep audio running */}
+             <div className="hidden">
+                <YouTube
+                    videoId={videoId}
+                    opts={opts}
+                    onReady={onPlayerReady}
+                    onStateChange={onPlayerStateChange}
+                />
+             </div>
+        </div>
+      )
+  }
+
   return (
-    <div className={`relative w-full transition-all duration-300 border-4 border-black bg-black ${showVideo ? 'h-64 sm:h-80 md:h-96' : 'h-0 border-0 overflow-hidden'}`}>
-      <div className={`absolute inset-0 ${showVideo ? 'block' : 'hidden'}`}>
-        <YouTube
-          videoId={videoId}
-          opts={opts}
-          onReady={onPlayerReady}
-          onStateChange={onPlayerStateChange}
-          className="h-full w-full"
-          iframeClassName="h-full w-full"
-        />
-      </div>
-      
+    <div className="relative w-full aspect-video bg-black">
+      <YouTube
+        videoId={videoId}
+        opts={opts}
+        onReady={onPlayerReady}
+        onStateChange={onPlayerStateChange}
+        className="h-full w-full"
+        iframeClassName="h-full w-full"
+      />
       {/* Overlay for CRT effect (optional aesthetic) */}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]"></div>
     </div>

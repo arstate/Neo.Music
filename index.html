@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Zombio Tapes</title>
+    <title>NEO MUSIC</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,6 +29,7 @@
             boxShadow: {
               'neo': '8px 8px 0px 0px rgba(0,0,0,1)',
               'neo-sm': '4px 4px 0px 0px rgba(0,0,0,1)',
+              'neo-xs': '2px 2px 0px 0px rgba(0,0,0,1)',
               'neo-hover': '0px 0px 0px 0px rgba(0,0,0,1)',
             }
           }
@@ -36,6 +37,11 @@
       }
     </script>
     <style>
+      body, html {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
       body {
         background-color: #e5e7eb;
         background-image: radial-gradient(#000 1px, transparent 1px);
@@ -43,7 +49,8 @@
       }
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
-        width: 12px;
+        width: 8px;
+        height: 8px;
       }
       ::-webkit-scrollbar-track {
         background: #000;
@@ -51,6 +58,14 @@
       ::-webkit-scrollbar-thumb {
         background: #a3e635;
         border: 2px solid #000;
+      }
+      .animate-marquee {
+        display: inline-block;
+        animation: marquee 15s linear infinite;
+      }
+      @keyframes marquee {
+        0% { transform: translateX(100%); }
+        100% { transform: translateX(-100%); }
       }
     </style>
   <script type="importmap">
@@ -67,7 +82,7 @@
 </script>
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root" class="h-full w-full"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

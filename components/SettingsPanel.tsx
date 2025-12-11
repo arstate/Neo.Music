@@ -19,55 +19,42 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   setLoopMode,
 }) => {
   return (
-    <div className="mb-6 flex flex-col gap-4 border-4 border-black bg-neo-blue p-4 shadow-neo">
-      <h2 className="font-display text-xl font-bold text-white underline decoration-4 underline-offset-4">
-        CONFIG
-      </h2>
+    <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Toggle Video */}
-        <div className="flex flex-col gap-2">
-          <label className="font-mono text-sm font-bold text-white">VISUALS</label>
-          <button
-            onClick={() => setShowVideo(!showVideo)}
-            className={`border-4 border-black px-4 py-2 font-bold shadow-neo-sm transition-transform active:translate-y-1 ${
-              showVideo ? 'bg-neo-green text-black' : 'bg-gray-300 text-gray-500'
-            }`}
-          >
-            {showVideo ? 'ON' : 'OFF'}
-          </button>
-        </div>
+      {/* Visual Toggle */}
+      <button
+        onClick={() => setShowVideo(!showVideo)}
+        className={`h-8 border-2 border-black px-2 text-xs font-bold transition-colors ${
+          showVideo ? 'bg-neo-blue text-white' : 'bg-gray-200 text-gray-400'
+        }`}
+        title="Toggle Video Preview"
+      >
+        {showVideo ? 'VID:ON' : 'VID:OFF'}
+      </button>
 
-        {/* Quality Selector */}
-        <div className="flex flex-col gap-2">
-          <label className="font-mono text-sm font-bold text-white">QUALITY</label>
-          <select
-            value={videoQuality}
-            onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}
-            className="border-4 border-black bg-white px-2 py-2 font-mono font-bold shadow-neo-sm focus:outline-none"
-          >
-            <option value={VideoQuality.SMALL}>LOW (240p)</option>
-            <option value={VideoQuality.MEDIUM}>MED (360p)</option>
-            <option value={VideoQuality.LARGE}>HIGH (480p)</option>
-            <option value={VideoQuality.HD720}>HD (720p)</option>
-          </select>
-        </div>
+      {/* Loop Mode */}
+      <button
+        onClick={() => setLoopMode(loopMode === LoopMode.ONE ? LoopMode.ALL : LoopMode.ONE)}
+        className={`h-8 border-2 border-black px-2 text-xs font-bold transition-colors ${
+          loopMode === LoopMode.ONE ? 'bg-neo-pink text-white' : 'bg-white text-black'
+        }`}
+        title="Toggle Loop Mode"
+      >
+        {loopMode === LoopMode.ONE ? '1' : '∞'}
+      </button>
 
-        {/* Loop Mode */}
-        <div className="flex flex-col gap-2">
-          <label className="font-mono text-sm font-bold text-white">MODE</label>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setLoopMode(loopMode === LoopMode.ONE ? LoopMode.ALL : LoopMode.ONE)}
-              className={`flex-1 border-4 border-black py-2 font-bold shadow-neo-sm transition-transform active:translate-y-1 ${
-                loopMode === LoopMode.ONE ? 'bg-neo-pink text-white' : 'bg-white text-black'
-              }`}
-            >
-              {loopMode === LoopMode.ONE ? 'LOOP 1' : 'AUTO NEXT'}
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Quality */}
+      <select
+        value={videoQuality}
+        onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}
+        className="h-8 border-2 border-black bg-white px-1 text-xs font-bold focus:outline-none"
+        title="Video Quality"
+      >
+        <option value={VideoQuality.SMALL}>240p</option>
+        <option value={VideoQuality.MEDIUM}>360p</option>
+        <option value={VideoQuality.LARGE}>480p</option>
+        <option value={VideoQuality.HD720}>720p</option>
+      </select>
     </div>
   );
 };
