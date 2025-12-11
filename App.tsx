@@ -73,12 +73,23 @@ const App: React.FC = () => {
   const isPlayingRef = useRef(isPlaying);
 
   // --- PERSISTENCE ---
-  // Load Playlists on Mount
+  // Load Playlists on Mount with Sanitization
   useEffect(() => {
     const stored = localStorage.getItem('neo_music_playlists');
     if (stored) {
       try {
-        setSavedPlaylists(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          // SANITIZATION: Ensure all videos have a valid thumbnail string to prevent "null.src" errors
+          const sanitized = parsed.map((pl: any) => ({
+             ...pl,
+             videos: Array.isArray(pl.videos) ? pl.videos.map((v: any) => ({
+                ...v,
+                thumbnail: v.thumbnail || 'https://i.ytimg.com/mqdefault.jpg'
+             })) : []
+          }));
+          setSavedPlaylists(sanitized);
+        }
       } catch (e) {
         console.error("Failed to parse playlists", e);
       }
@@ -124,6 +135,7 @@ const App: React.FC = () => {
         if (results && results.length > 0) {
           setPlaylist(results);
           setCurrentIndex(0);
+          setIsPlaying(true); // Auto-play enabled here
         }
       } catch (e) {
         console.error("Initial auto-search failed:", e);
@@ -304,11 +316,11 @@ const App: React.FC = () => {
     if ('mediaSession' in navigator && currentVideo) {
       // Defensive coding to filter out empty images which might cause "Cannot read properties of null (reading 'src')" in some browsers
       const validArtwork = [
-        { src: currentVideo.thumbnail, sizes: '96x96', type: 'image/jpg' },
-        { src: currentVideo.thumbnail, sizes: '128x128', type: 'image/jpg' },
-        { src: currentVideo.thumbnail, sizes: '192x192', type: 'image/jpg' },
-        { src: currentVideo.thumbnail, sizes: '512x512', type: 'image/jpg' },
-      ].filter(img => img.src && img.src.trim() !== '');
+        { src: currentVideo.thumbnail || '', sizes: '96x96', type: 'image/jpg' },
+        { src: currentVideo.thumbnail || '', sizes: '128x128', type: 'image/jpg' },
+        { src: currentVideo.thumbnail || '', sizes: '192x192', type: 'image/jpg' },
+        { src: currentVideo.thumbnail || '', sizes: '512x512', type: 'image/jpg' },
+      ].filter(img => typeof img.src === 'string' && img.src.trim() !== '');
 
       navigator.mediaSession.metadata = new MediaMetadata({
         title: currentVideo.title,
