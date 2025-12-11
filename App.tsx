@@ -89,11 +89,14 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isPlaying && playerObj) {
       timerRef.current = window.setInterval(() => {
-        const time = playerObj.getCurrentTime();
-        const dur = playerObj.getDuration();
-        setCurrentTime(time);
-        if (dur && dur > 0 && dur !== duration) {
-          setDuration(dur);
+        // Safe check for method existence
+        if (playerObj.getCurrentTime && playerObj.getDuration) {
+          const time = playerObj.getCurrentTime();
+          const dur = playerObj.getDuration();
+          setCurrentTime(time);
+          if (dur && dur > 0 && dur !== duration) {
+            setDuration(dur);
+          }
         }
       }, 500); 
     } else {
@@ -140,13 +143,20 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isPlaying) {
       // 1. YouTube Play
-      playerObj?.playVideo();
+      if (playerObj && typeof playerObj.playVideo === 'function') {
+        playerObj.playVideo();
+      }
       
       // 2. Ghost Audio Play (Keeps iOS Session Alive)
       if (ghostAudioRef.current) {
         // We set volume to almost zero, but not muted (muted often kills bg tasks)
-        ghostAudioRef.current.volume = 0.01; 
-        ghostAudioRef.current.play().catch(e => console.warn("Ghost play failed", e));
+        ghostAudioRef.current.volume = 0.05; 
+        const playPromise = ghostAudioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.log("Ghost Audio Play Error (Expected if no interaction):", error);
+          });
+        }
       }
 
       // 3. Keep Alive Ping (AudioContext)
@@ -162,9 +172,13 @@ const App: React.FC = () => {
 
     } else {
       // 1. YouTube Pause
-      playerObj?.pauseVideo();
+      if (playerObj && typeof playerObj.pauseVideo === 'function') {
+        playerObj.pauseVideo();
+      }
 
       // 2. Ghost Audio Pause
+      // NOTE: We only pause ghost audio if the USER explicitly paused.
+      // If logic is just switching tracks, isPlaying stays true, so this block won't run.
       if (ghostAudioRef.current) {
         ghostAudioRef.current.pause();
       }
@@ -204,7 +218,6 @@ const App: React.FC = () => {
       // CRITICAL: We update state locally, the useEffect above handles the actual hardware sync
       navigator.mediaSession.setActionHandler('play', () => {
         setIsPlaying(true);
-        // FORCE status update immediately for iOS so notification doesn't vanish
         navigator.mediaSession.playbackState = 'playing'; 
       });
 
@@ -227,13 +240,17 @@ const App: React.FC = () => {
   // --- AUDIO CONTEXT HACK (Secondary Backup) ---
   const playSilentPing = () => {
     if (audioContextRef.current && audioContextRef.current.state === 'running') {
-        const osc = audioContextRef.current.createOscillator();
-        const gain = audioContextRef.current.createGain();
-        gain.gain.value = 0.001; 
-        osc.connect(gain);
-        gain.connect(audioContextRef.current.destination);
-        osc.start();
-        osc.stop(audioContextRef.current.currentTime + 0.1); 
+        try {
+          const osc = audioContextRef.current.createOscillator();
+          const gain = audioContextRef.current.createGain();
+          gain.gain.value = 0.001; 
+          osc.connect(gain);
+          gain.connect(audioContextRef.current.destination);
+          osc.start();
+          osc.stop(audioContextRef.current.currentTime + 0.1); 
+        } catch(e) {
+          // Ignore
+        }
     }
   };
 
@@ -249,7 +266,7 @@ const App: React.FC = () => {
     }
 
     if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume();
+        audioContextRef.current.resume().catch(() => {});
     }
 
     keepAliveIntervalRef.current = window.setInterval(() => {
@@ -292,6 +309,7 @@ const App: React.FC = () => {
     if (results.length > 0) {
       setPlaylist(results);
       setCurrentIndex(0);
+      setIsPlaying(true); // Auto Play on search
     }
   };
 
@@ -309,16 +327,18 @@ const App: React.FC = () => {
     if (playlist.length === 0) return;
     const nextIndex = (currentIndex + 1) % playlist.length;
     setCurrentIndex(nextIndex);
-    // Ensure we stay playing
+    // CRITICAL: Ensure we stay playing.
+    // iOS kills the session if we pause, even briefly, during a lock-screen interaction.
+    // We explicitly set this true. The effect hook will handle the player/ghost syncing.
     setIsPlaying(true);
   }, [currentIndex, playlist.length]);
 
-  const playPrev = () => {
+  const playPrev = useCallback(() => {
     if (playlist.length === 0) return;
     const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
     setCurrentIndex(prevIndex);
     setIsPlaying(true);
-  };
+  }, [currentIndex, playlist.length]);
 
   const handleVideoEnd = () => {
     if (loopMode === LoopMode.ONE) {
@@ -327,6 +347,25 @@ const App: React.FC = () => {
     } else {
       playNext();
     }
+  };
+
+  // This function is passed to the YouTube component.
+  // We use it to detect "Ready" or "Playing" to confirm we are good.
+  // BUT we do NOT use it to set IsPlaying to false if the player sends a pause event caused by buffering/loading.
+  const handlePlayerStateChange = (event: any) => {
+      // 1 = Playing, 2 = Paused, 3 = Buffering, 0 = Ended
+      if (event.data === 1) {
+          // If the player started playing, ensure our state matches
+          if (!isPlaying) setIsPlaying(true);
+      }
+      // If event.data === 2 (Paused), we IGNORE it here.
+      // Why? Because YouTube fires "Paused" when seeking or loading a new video.
+      // If we setIsPlaying(false) here, it kills the Ghost Audio, which kills the iOS background session.
+      // We only let the User Controls (togglePlayPause) or MediaSession "pause" handler change the state to false.
+      
+      if (event.data === 0) {
+        handleVideoEnd();
+      }
   };
 
   const togglePlayPause = () => {
@@ -412,6 +451,7 @@ const App: React.FC = () => {
       
       {/* THE GHOST PLAYER - Crucial for iOS Backgrounding */}
       {/* Plays a silent loop. iOS respects this more than YouTube Iframe. */}
+      {/* We add controls=true temporarily for debugging or if browser forces it, but usually hidden is fine if we trigger play correctly */}
       <audio 
         ref={ghostAudioRef}
         src={SILENT_AUDIO_URI} 
@@ -542,7 +582,10 @@ const App: React.FC = () => {
                       volume={volume}
                       onEnd={handleVideoEnd}
                       onPlay={() => setIsPlaying(true)}
-                      onPause={() => setIsPlaying(false)}
+                      // We pass an empty function for onPause to prevent the player's internal state
+                      // (e.g. buffering or loading transition) from setting our global isPlaying to false.
+                      // Our 'togglePlayPause' controls the intent.
+                      onPause={() => {}} 
                       setPlayerRef={setPlayerObj}
                     />
                 ) : (
