@@ -27,7 +27,8 @@ const App: React.FC = () => {
     if (!query.trim()) return;
     const results = await searchVideos(query);
     if (results.length > 0) {
-      setPlaylist(prev => [...prev, ...results]);
+      setPlaylist(results);
+      setCurrentIndex(0);
     }
     setQuery('');
   };
