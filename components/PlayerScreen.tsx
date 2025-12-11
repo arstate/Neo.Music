@@ -96,7 +96,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
 
       {/* 2. YouTube Player Layer */}
       {/* We use opacity-0 when hidden, NOT display:none, to keep audio stream active on mobile */}
-      <div className={`w-full h-full ${showVideo ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
+      <div className={`relative w-full h-full ${showVideo ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
         <YouTube
           videoId={videoId}
           opts={opts}
@@ -105,6 +105,12 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
           className="h-full w-full"
           iframeClassName="h-full w-full"
         />
+        
+        {/* INTERACTION BLOCKER: Prevents hover states on iframe (hides Watermark/Title) */}
+        {showVideo && (
+           <div className="absolute inset-0 z-30 bg-transparent w-full h-full"></div>
+        )}
+
         {/* Overlay for CRT effect (Only visible when video is showing) */}
         {showVideo && (
            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]"></div>
