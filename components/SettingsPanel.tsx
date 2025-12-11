@@ -160,17 +160,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* Quality (Changes based on Data Saver or BG mode) */}
       {isDataSaver || isBackgroundMode ? (
-        /* Audio Quality Dropdown */
-        <select
-          value={audioQuality}
-          onChange={(e) => setAudioQuality(e.target.value as AudioQuality)}
-          className="h-8 w-14 sm:w-auto border-2 border-black bg-green-100 px-0 sm:px-1 text-[10px] sm:text-xs font-bold focus:outline-none"
-          title="Audio Quality (Data Saver)"
-        >
-          <option value={AudioQuality.LOW}>LO</option>
-          <option value={AudioQuality.MID}>MID</option>
-          <option value={AudioQuality.HIGH}>HI</option>
-        </select>
+        /* Audio Quality Dropdown (Simplified) */
+        <div className="h-8 flex items-center justify-center border-2 border-black bg-green-100 px-2 text-[10px] font-bold text-green-800">
+           ECO/10p
+        </div>
       ) : (
         /* Video Quality Dropdown */
         <select
@@ -179,6 +172,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
           className="h-8 w-14 sm:w-auto border-2 border-black bg-white px-0 sm:px-1 text-[10px] sm:text-xs font-bold focus:outline-none"
           title="Video Quality"
         >
+          <option value={VideoQuality.ZERO}>10p (Low)</option>
+          <option value={VideoQuality.TINY}>144p</option>
           <option value={VideoQuality.SMALL}>240p</option>
           <option value={VideoQuality.MEDIUM}>360p</option>
           <option value={VideoQuality.LARGE}>480p</option>

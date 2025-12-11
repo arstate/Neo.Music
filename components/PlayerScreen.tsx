@@ -27,10 +27,23 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
 }) => {
   const playerRef = useRef<any>(null);
 
+  // Helper to resolve custom qualities (ZERO/10p) to API supported ones
+  const getApiQuality = (q: VideoQuality) => {
+    if (q === VideoQuality.ZERO) return 'tiny'; // Map 10p to 144p (tiny)
+    return q;
+  };
+
+  const applyQuality = (target: any) => {
+    if (target && typeof target.setPlaybackQuality === 'function') {
+      const apiQuality = getApiQuality(videoQuality);
+      target.setPlaybackQuality(apiQuality);
+    }
+  };
+
   // Handle Quality Updates
   useEffect(() => {
-    if (playerRef.current && typeof playerRef.current.setPlaybackQuality === 'function') {
-      playerRef.current.setPlaybackQuality(videoQuality);
+    if (playerRef.current) {
+      applyQuality(playerRef.current);
     }
   }, [videoQuality]);
 
@@ -44,14 +57,22 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
   const onPlayerReady: YouTubeProps['onReady'] = (event) => {
     playerRef.current = event.target;
     setPlayerRef(event.target);
-    event.target.setPlaybackQuality(videoQuality);
+    applyQuality(event.target);
     event.target.setVolume(volume);
     event.target.playVideo();
   };
 
   const onPlayerStateChange: YouTubeProps['onStateChange'] = (event) => {
-    // 1 = Playing, 2 = Paused, 0 = Ended
-    if (event.data === 1) onPlay();
+    // 1 = Playing, 2 = Paused, 3 = Buffering, 0 = Ended
+    if (event.data === 1) {
+       onPlay();
+       // Aggressively enforce quality on Play start (YouTube often resets it)
+       applyQuality(event.target);
+    }
+    if (event.data === 3) {
+      // Also enforce during buffering
+      applyQuality(event.target);
+    }
     if (event.data === 2) onPause();
     if (event.data === 0) {
       if (loopMode === LoopMode.ONE) {
@@ -81,7 +102,6 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     <div className="relative w-full aspect-video bg-black border-4 border-black overflow-hidden">
       
       {/* 1. Placeholder Layer (Visible when showVideo is FALSE) */}
-      {/* FIXED: Changed z-20 to z-10 to allow search dropdown (z-50) to appear on top */}
       <div 
         className={`absolute inset-0 z-10 flex items-center justify-center bg-neo-yellow transition-opacity duration-300 ${showVideo ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       >
@@ -89,7 +109,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
           <div className="z-10 text-center p-4">
               <h3 className="font-display text-4xl sm:text-6xl font-black text-black opacity-80 uppercase tracking-tighter">Audio Only</h3>
               <div className="mt-4 inline-block border-4 border-black bg-white px-4 py-1 font-mono text-sm font-bold animate-pulse">
-                PLAYING...
+                {videoQuality === VideoQuality.ZERO || videoQuality === VideoQuality.TINY ? "10p ECO MODE" : "PLAYING..."}
               </div>
           </div>
       </div>

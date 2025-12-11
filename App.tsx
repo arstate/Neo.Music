@@ -444,7 +444,11 @@ const App: React.FC = () => {
     }
   };
 
-  const effectiveQuality = (isDataSaver || isBackgroundMode) ? (audioQuality as unknown as VideoQuality) : videoQuality;
+  // LOGIC: If Data Saver OR Background Mode OR ShowVideo is false -> Force ZERO/10p (which maps to tiny)
+  // This satisfies: "untuk mode no preview pengaturan resolusinya di set ke 10p"
+  const effectiveQuality = (isDataSaver || isBackgroundMode || !showVideo) 
+    ? VideoQuality.ZERO 
+    : videoQuality;
 
   return (
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">

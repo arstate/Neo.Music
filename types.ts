@@ -6,10 +6,12 @@ export interface VideoResult {
 }
 
 export enum VideoQuality {
-  SMALL = 'small',
-  MEDIUM = 'medium',
-  LARGE = 'large',
-  HD720 = 'hd720',
+  ZERO = 'zero',   // 10p (Custom internal mapping to tiny)
+  TINY = 'tiny',   // 144p
+  SMALL = 'small', // 240p
+  MEDIUM = 'medium', // 360p
+  LARGE = 'large', // 480p
+  HD720 = 'hd720', // 720p
 }
 
 export enum AudioQuality {
