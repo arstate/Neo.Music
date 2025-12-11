@@ -176,11 +176,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         <select
           value={videoQuality}
           onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}
-          className="h-8 w-16 sm:w-auto border-2 border-black bg-white px-0 sm:px-1 text-[10px] sm:text-xs font-bold focus:outline-none"
+          className="h-8 w-14 sm:w-auto border-2 border-black bg-white px-0 sm:px-1 text-[10px] sm:text-xs font-bold focus:outline-none"
           title="Video Quality"
         >
-          <option value={VideoQuality.TINY}>10p (Super Low)</option>
-          <option value={VideoQuality.TINY}>144p</option>
           <option value={VideoQuality.SMALL}>240p</option>
           <option value={VideoQuality.MEDIUM}>360p</option>
           <option value={VideoQuality.LARGE}>480p</option>
