@@ -12,6 +12,12 @@ export enum VideoQuality {
   HD720 = 'hd720',
 }
 
+export enum AudioQuality {
+  LOW = 'small',   // 144p - Saves most data
+  MID = 'medium',  // 360p - Balanced
+  HIGH = 'hd720',  // 720p - Best Audio
+}
+
 export enum LoopMode {
   OFF = 'off',
   ONE = 'one',

@@ -63,7 +63,7 @@ const Controls: React.FC<ControlsProps> = ({
         {/* -10s */}
         <button
           onClick={() => onSkip(-10)}
-          className="hidden sm:flex h-8 w-8 items-center justify-center border-2 border-black bg-white text-[10px] font-bold hover:bg-neo-blue hover:text-white active:translate-y-0.5"
+          className="flex h-8 w-8 items-center justify-center border-2 border-black bg-white text-[10px] font-bold hover:bg-neo-blue hover:text-white active:translate-y-0.5"
           title="Rewind 10s"
         >
           -10
@@ -91,7 +91,7 @@ const Controls: React.FC<ControlsProps> = ({
         {/* +10s */}
         <button
           onClick={() => onSkip(10)}
-          className="hidden sm:flex h-8 w-8 items-center justify-center border-2 border-black bg-white text-[10px] font-bold hover:bg-neo-blue hover:text-white active:translate-y-0.5"
+          className="flex h-8 w-8 items-center justify-center border-2 border-black bg-white text-[10px] font-bold hover:bg-neo-blue hover:text-white active:translate-y-0.5"
           title="Forward 10s"
         >
           +10

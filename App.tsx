@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { VideoResult, VideoQuality, LoopMode } from './types';
+import { VideoResult, VideoQuality, AudioQuality, LoopMode } from './types';
 import { searchVideos } from './services/youtubeService';
 import PlayerScreen from './components/PlayerScreen';
 import Controls from './components/Controls';
@@ -21,6 +21,8 @@ const App: React.FC = () => {
   // Settings
   const [showVideo, setShowVideo] = useState(true);
   const [videoQuality, setVideoQuality] = useState<VideoQuality>(VideoQuality.MEDIUM);
+  const [audioQuality, setAudioQuality] = useState<AudioQuality>(AudioQuality.MID);
+  const [isDataSaver, setIsDataSaver] = useState(false);
   const [loopMode, setLoopMode] = useState<LoopMode>(LoopMode.ALL);
 
   const currentVideo = playlist[currentIndex];
@@ -136,6 +138,21 @@ const App: React.FC = () => {
     }
   };
 
+  // Data Saver Toggle Logic
+  const toggleDataSaver = () => {
+    const newState = !isDataSaver;
+    setIsDataSaver(newState);
+    if (newState) {
+      setShowVideo(false); // Force video off
+    } else {
+      setShowVideo(true); // Restore video
+    }
+  };
+
+  // Effective Quality Logic
+  // If Data Saver is ON, use AudioQuality (mapped to video quality), otherwise use VideoQuality
+  const effectiveQuality = isDataSaver ? (audioQuality as unknown as VideoQuality) : videoQuality;
+
   return (
     // Use h-[100dvh] for better mobile browser support
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">
@@ -201,7 +218,7 @@ const App: React.FC = () => {
                     <PlayerScreen 
                       videoId={currentVideo.id}
                       showVideo={showVideo}
-                      videoQuality={videoQuality}
+                      videoQuality={effectiveQuality}
                       loopMode={loopMode}
                       onEnd={handleVideoEnd}
                       onPlay={() => setIsPlaying(true)}
@@ -266,6 +283,10 @@ const App: React.FC = () => {
                setShowVideo={setShowVideo}
                videoQuality={videoQuality}
                setVideoQuality={setVideoQuality}
+               audioQuality={audioQuality}
+               setAudioQuality={setAudioQuality}
+               isDataSaver={isDataSaver}
+               toggleDataSaver={toggleDataSaver}
                loopMode={loopMode}
                setLoopMode={setLoopMode}
              />
