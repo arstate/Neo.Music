@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { VideoResult, VideoQuality, AudioQuality, LoopMode } from './types';
-import { searchVideos } from './services/youtubeService';
+import { searchVideos, getSearchSuggestions } from './services/youtubeService';
 import PlayerScreen from './components/PlayerScreen';
 import Controls from './components/Controls';
 import SettingsPanel from './components/SettingsPanel';
@@ -9,6 +9,9 @@ import Playlist from './components/Playlist';
 const App: React.FC = () => {
   // State
   const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
   const [playlist, setPlaylist] = useState<VideoResult[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -27,6 +30,7 @@ const App: React.FC = () => {
 
   const currentVideo = playlist[currentIndex];
   const timerRef = useRef<number | null>(null);
+  const debounceRef = useRef<number | null>(null);
 
   // Initial Search for "dj tiktok"
   useEffect(() => {
@@ -71,15 +75,42 @@ const App: React.FC = () => {
     setDuration(0);
   }, [currentIndex]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    const results = await searchVideos(query);
+  // Handle Search Input Change with Debounce for Suggestions
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    setShowSuggestions(true);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (val.trim().length > 1) {
+      debounceRef.current = window.setTimeout(async () => {
+        const sugs = await getSearchSuggestions(val);
+        setSuggestions(sugs);
+      }, 300); // Wait 300ms after typing stops
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const executeSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
+    setShowSuggestions(false); // Hide suggestions
+    const results = await searchVideos(searchQuery);
     if (results.length > 0) {
       setPlaylist(results);
       setCurrentIndex(0);
     }
-    setQuery('');
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeSearch(query);
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setQuery(suggestion);
+    executeSearch(suggestion);
   };
 
   const playNext = useCallback(() => {
@@ -150,7 +181,6 @@ const App: React.FC = () => {
   };
 
   // Effective Quality Logic
-  // If Data Saver is ON, use AudioQuality (mapped to video quality), otherwise use VideoQuality
   const effectiveQuality = isDataSaver ? (audioQuality as unknown as VideoQuality) : videoQuality;
 
   return (
@@ -183,30 +213,53 @@ const App: React.FC = () => {
         {/* MAIN CONTENT */}
         <main className="flex flex-1 flex-col bg-[#e5e7eb] relative min-w-0">
           {/* Top Bar: Search */}
-          <div className="sticky top-0 z-20 flex w-full items-center gap-2 border-b-4 border-black bg-white p-2 sm:p-4">
-             {/* Mobile Logo (Visible only on small screens) */}
-             <div className="md:hidden flex items-center pr-2 font-display font-black text-lg">N.M</div>
+          <div className="sticky top-0 z-20 w-full border-b-4 border-black bg-white p-2 sm:p-4">
+            <div className="flex items-center gap-2">
+                {/* Mobile Logo (Visible only on small screens) */}
+                <div className="md:hidden flex items-center pr-2 font-display font-black text-lg">N.M</div>
 
-            <form onSubmit={handleSearch} className="flex flex-1 gap-1 sm:gap-2 min-w-0">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="SEARCH..."
-                className="w-full flex-1 border-2 sm:border-4 border-black bg-white p-2 font-bold uppercase outline-none placeholder:text-gray-400 focus:bg-neo-yellow focus:placeholder:text-black text-sm sm:text-base"
-              />
-              <button
-                type="submit"
-                className="flex items-center justify-center border-2 sm:border-4 border-black bg-neo-green px-3 sm:px-6 font-display font-bold uppercase text-black shadow-neo-sm transition-transform active:translate-y-1 active:shadow-none"
-              >
-                <span className="hidden sm:inline">Find</span>
-                <span className="sm:hidden">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="square" strokeLinejoin="miter" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                  </svg>
-                </span>
-              </button>
-            </form>
+                <div className="relative flex-1 min-w-0">
+                    <form onSubmit={handleSearchSubmit} className="flex gap-1 sm:gap-2 w-full">
+                        <input
+                            type="text"
+                            value={query}
+                            onChange={handleInputChange}
+                            onFocus={() => setShowSuggestions(true)}
+                            // Delayed blur to allow click on suggestion to register
+                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                            placeholder="SEARCH..."
+                            className="w-full flex-1 border-2 sm:border-4 border-black bg-white p-2 font-bold uppercase outline-none placeholder:text-gray-400 focus:bg-neo-yellow focus:placeholder:text-black text-sm sm:text-base"
+                            autoComplete="off"
+                        />
+                        <button
+                            type="submit"
+                            className="flex items-center justify-center border-2 sm:border-4 border-black bg-neo-green px-3 sm:px-6 font-display font-bold uppercase text-black shadow-neo-sm transition-transform active:translate-y-1 active:shadow-none"
+                        >
+                            <span className="hidden sm:inline">Find</span>
+                            <span className="sm:hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="square" strokeLinejoin="miter" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                            </svg>
+                            </span>
+                        </button>
+                    </form>
+
+                    {/* Suggestions Dropdown */}
+                    {showSuggestions && suggestions.length > 0 && (
+                        <div className="absolute top-full left-0 mt-1 w-full border-4 border-black bg-white shadow-neo z-50">
+                            {suggestions.map((suggestion, index) => (
+                                <div
+                                    key={index}
+                                    className="cursor-pointer border-b-2 border-gray-100 p-2 text-sm font-bold uppercase hover:bg-neo-pink hover:text-white last:border-0"
+                                    onMouseDown={() => handleSuggestionClick(suggestion)} // onMouseDown fires before onBlur
+                                >
+                                    {suggestion}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
           </div>
 
           {/* Content Area */}

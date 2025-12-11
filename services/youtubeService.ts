@@ -33,3 +33,47 @@ export const searchVideos = async (query: string): Promise<VideoResult[]> => {
     return [];
   }
 };
+
+export const getSearchSuggestions = (query: string): Promise<string[]> => {
+  return new Promise((resolve) => {
+    if (!query.trim()) {
+        resolve([]);
+        return;
+    }
+
+    // JSONP implementation to bypass CORS on the suggestion API
+    const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+    const script = document.createElement('script');
+    
+    // Google Suggest URL
+    script.src = `https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q=${encodeURIComponent(query)}&callback=${callbackName}`;
+
+    (window as any)[callbackName] = (data: any) => {
+        delete (window as any)[callbackName];
+        if (document.body.contains(script)) {
+            document.body.removeChild(script);
+        }
+        // data[1] contains the suggestions array: [ ["suggestion1", ...], ... ]
+        // or sometimes simply ["suggestion", ...] depending on the client param.
+        // With client=youtube, it usually returns [query, [sug1, sug2, ...], ...]
+        if (data && data[1]) {
+             const results = data[1].map((item: any) => {
+                 return Array.isArray(item) ? item[0] : item;
+             });
+             resolve(results);
+        } else {
+            resolve([]);
+        }
+    };
+
+    script.onerror = () => {
+        delete (window as any)[callbackName];
+        if (document.body.contains(script)) {
+            document.body.removeChild(script);
+        }
+        resolve([]);
+    };
+
+    document.body.appendChild(script);
+  });
+};
