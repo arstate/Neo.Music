@@ -12,6 +12,8 @@ interface SettingsPanelProps {
   toggleDataSaver: () => void;
   loopMode: LoopMode;
   setLoopMode: (m: LoopMode) => void;
+  isBackgroundMode: boolean;
+  toggleBackgroundMode: () => void;
 }
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -25,22 +27,35 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   toggleDataSaver,
   loopMode,
   setLoopMode,
+  isBackgroundMode,
+  toggleBackgroundMode,
 }) => {
   return (
     <div className="flex flex-nowrap items-center gap-1 sm:gap-2">
       
-      {/* Visual Toggle (Disabled if Data Saver is ON) */}
+      {/* Background / Minimize Button */}
       <button
-        onClick={() => !isDataSaver && setShowVideo(!showVideo)}
-        disabled={isDataSaver}
+        onClick={toggleBackgroundMode}
         className={`flex h-8 w-10 sm:w-auto items-center justify-center border-2 border-black px-1 text-[10px] sm:text-xs font-bold transition-colors ${
-          isDataSaver 
+          isBackgroundMode ? 'bg-purple-600 text-white shadow-neo-xs' : 'bg-white text-black hover:bg-purple-100'
+        }`}
+        title="Background Play / Minimize Info"
+      >
+        {isBackgroundMode ? 'BG:ON' : 'BG'}
+      </button>
+
+      {/* Visual Toggle (Disabled if Data Saver or BG Mode is ON) */}
+      <button
+        onClick={() => !isDataSaver && !isBackgroundMode && setShowVideo(!showVideo)}
+        disabled={isDataSaver || isBackgroundMode}
+        className={`flex h-8 w-10 sm:w-auto items-center justify-center border-2 border-black px-1 text-[10px] sm:text-xs font-bold transition-colors ${
+          isDataSaver || isBackgroundMode
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
             : showVideo 
               ? 'bg-neo-blue text-white' 
               : 'bg-gray-200 text-gray-400'
         }`}
-        title={isDataSaver ? "Disabled in Eco Mode" : "Toggle Video Preview"}
+        title={isDataSaver || isBackgroundMode ? "Disabled in Eco/BG Mode" : "Toggle Video Preview"}
       >
         {showVideo ? 'VID' : 'OFF'}
       </button>
@@ -67,8 +82,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         {loopMode === LoopMode.ONE ? '1' : '∞'}
       </button>
 
-      {/* Quality (Changes based on Data Saver mode) */}
-      {isDataSaver ? (
+      {/* Quality (Changes based on Data Saver or BG mode) */}
+      {isDataSaver || isBackgroundMode ? (
         /* Audio Quality Dropdown */
         <select
           value={audioQuality}

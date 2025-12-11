@@ -62,46 +62,47 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
       modestbranding: 1,
       rel: 0,
       iv_load_policy: 3, // Hide annotations
+      playsinline: 1, // Crucial for mobile inline/background playback
     },
   };
 
-  // If video is hidden, we render a placeholder art instead of hiding the div completely, 
-  // to maintain structure in the main view.
-  if (!showVideo) {
-      return (
-        <div className="relative w-full h-full aspect-video bg-neo-yellow border-black flex items-center justify-center overflow-hidden">
-             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-black to-transparent"></div>
-             <div className="z-10 text-center p-4">
-                 <h3 className="font-display text-4xl sm:text-6xl font-black text-black opacity-80 uppercase tracking-tighter">Audio Only</h3>
-                 <div className="mt-4 inline-block border-4 border-black bg-white px-4 py-1 font-mono text-sm font-bold animate-pulse">
-                    PLAYING...
-                 </div>
-             </div>
-             {/* Hidden player to keep audio running */}
-             <div className="hidden">
-                <YouTube
-                    videoId={videoId}
-                    opts={opts}
-                    onReady={onPlayerReady}
-                    onStateChange={onPlayerStateChange}
-                />
-             </div>
-        </div>
-      )
-  }
+  // Logic Change: We don't use Conditional Rendering for the Player Component anymore.
+  // We allow the Player to render ALWAYS, but we hide it visually if showVideo is false.
+  // This ensures background audio works on iOS/Android as the element is still in DOM.
 
   return (
-    <div className="relative w-full aspect-video bg-black">
-      <YouTube
-        videoId={videoId}
-        opts={opts}
-        onReady={onPlayerReady}
-        onStateChange={onPlayerStateChange}
-        className="h-full w-full"
-        iframeClassName="h-full w-full"
-      />
-      {/* Overlay for CRT effect (optional aesthetic) */}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]"></div>
+    <div className="relative w-full aspect-video bg-black border-4 border-black overflow-hidden">
+      
+      {/* 1. Placeholder Layer (Visible when showVideo is FALSE) */}
+      <div 
+        className={`absolute inset-0 z-20 flex items-center justify-center bg-neo-yellow transition-opacity duration-300 ${showVideo ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      >
+          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-black to-transparent"></div>
+          <div className="z-10 text-center p-4">
+              <h3 className="font-display text-4xl sm:text-6xl font-black text-black opacity-80 uppercase tracking-tighter">Audio Only</h3>
+              <div className="mt-4 inline-block border-4 border-black bg-white px-4 py-1 font-mono text-sm font-bold animate-pulse">
+                PLAYING...
+              </div>
+          </div>
+      </div>
+
+      {/* 2. YouTube Player Layer */}
+      {/* We use opacity-0 when hidden, NOT display:none, to keep audio stream active on mobile */}
+      <div className={`w-full h-full ${showVideo ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
+        <YouTube
+          videoId={videoId}
+          opts={opts}
+          onReady={onPlayerReady}
+          onStateChange={onPlayerStateChange}
+          className="h-full w-full"
+          iframeClassName="h-full w-full"
+        />
+        {/* Overlay for CRT effect (Only visible when video is showing) */}
+        {showVideo && (
+           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]"></div>
+        )}
+      </div>
+
     </div>
   );
 };

@@ -26,6 +26,7 @@ const App: React.FC = () => {
   const [videoQuality, setVideoQuality] = useState<VideoQuality>(VideoQuality.MEDIUM);
   const [audioQuality, setAudioQuality] = useState<AudioQuality>(AudioQuality.MID);
   const [isDataSaver, setIsDataSaver] = useState(false);
+  const [isBackgroundMode, setIsBackgroundMode] = useState(false);
   const [loopMode, setLoopMode] = useState<LoopMode>(LoopMode.ALL);
 
   const currentVideo = playlist[currentIndex];
@@ -74,6 +75,49 @@ const App: React.FC = () => {
     setCurrentTime(0);
     setDuration(0);
   }, [currentIndex]);
+
+  // --- MEDIA SESSION API INTEGRATION (For Background Play) ---
+  useEffect(() => {
+    if ('mediaSession' in navigator && currentVideo) {
+      // 1. Set Metadata (Notification Content)
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentVideo.title,
+        artist: currentVideo.channelTitle,
+        album: 'NEO MUSIC',
+        artwork: [
+          { src: currentVideo.thumbnail, sizes: '96x96', type: 'image/jpg' },
+          { src: currentVideo.thumbnail, sizes: '128x128', type: 'image/jpg' },
+          { src: currentVideo.thumbnail, sizes: '192x192', type: 'image/jpg' },
+          { src: currentVideo.thumbnail, sizes: '512x512', type: 'image/jpg' },
+        ]
+      });
+
+      // 2. Set Action Handlers (Lock Screen Controls)
+      navigator.mediaSession.setActionHandler('play', () => {
+        playerObj?.playVideo();
+        setIsPlaying(true);
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        playerObj?.pauseVideo();
+        setIsPlaying(false);
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', playPrev);
+      navigator.mediaSession.setActionHandler('nexttrack', playNext);
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime && playerObj) {
+            playerObj.seekTo(details.seekTime);
+        }
+      });
+    }
+  }, [currentVideo, playerObj, currentIndex, playlist]); // Re-run when video or player changes
+
+  // Update Media Session Playback State
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    }
+  }, [isPlaying]);
+
 
   // Handle Search Input Change with Debounce for Suggestions
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,19 +218,49 @@ const App: React.FC = () => {
     const newState = !isDataSaver;
     setIsDataSaver(newState);
     if (newState) {
-      setShowVideo(false); // Force video off
+      setShowVideo(false); 
+      // Ensure BG mode is off if we just want data saver, or keep it logic separate.
+      // Current design: Data Saver and BG Mode are friends.
+    } else if (!isBackgroundMode) {
+      setShowVideo(true);
+    }
+  };
+
+  // Background Mode Toggle
+  const toggleBackgroundMode = () => {
+    const newState = !isBackgroundMode;
+    setIsBackgroundMode(newState);
+    
+    if (newState) {
+        setShowVideo(false);
+        // Browser notification permissions might be requested here in a real PWA
     } else {
-      setShowVideo(true); // Restore video
+        // Only restore video if Data Saver is OFF
+        if (!isDataSaver) setShowVideo(true);
     }
   };
 
   // Effective Quality Logic
-  const effectiveQuality = isDataSaver ? (audioQuality as unknown as VideoQuality) : videoQuality;
+  // Uses AudioQuality if Data Saver OR Background Mode is on
+  const effectiveQuality = (isDataSaver || isBackgroundMode) ? (audioQuality as unknown as VideoQuality) : videoQuality;
 
   return (
     // Use h-[100dvh] for better mobile browser support
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">
       
+      {/* Background Mode Notification Toast */}
+      {isBackgroundMode && (
+          <div className="fixed top-16 right-4 left-4 z-[60] border-4 border-black bg-purple-500 p-3 shadow-neo text-white sm:w-80 sm:left-auto animate-bounce">
+              <div className="flex items-start gap-3">
+                  <div className="bg-white text-black p-1 font-bold text-xs border border-black">BG</div>
+                  <div>
+                    <h3 className="font-bold text-sm uppercase">Background Active</h3>
+                    <p className="text-xs mt-1">Video hidden. Audio playing. You can now switch tabs or minimize browser.</p>
+                  </div>
+              </div>
+          </div>
+      )}
+
       {/* Top Section: Sidebar + Main Content */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         
@@ -342,6 +416,8 @@ const App: React.FC = () => {
                toggleDataSaver={toggleDataSaver}
                loopMode={loopMode}
                setLoopMode={setLoopMode}
+               isBackgroundMode={isBackgroundMode}
+               toggleBackgroundMode={toggleBackgroundMode}
              />
           </div>
 
