@@ -1,4 +1,3 @@
-
 import { YOUTUBE_API_KEYS, YOUTUBE_SEARCH_URL } from '../constants';
 import { VideoResult } from '../types';
 
@@ -51,7 +50,9 @@ export const searchVideos = async (query: string, limit = 10): Promise<VideoResu
       return validResults;
 
     } catch (error) {
-      console.warn(`API Key ending in ...${apiKey.slice(-4)} failed (Index: ${currentKeyIndex}). Error: ${error}`);
+      // SAFE LOGGING: Ensure apiKey exists before slicing to prevent "slice of undefined" error
+      const keySuffix = apiKey ? apiKey.slice(-4) : 'UNKNOWN';
+      console.warn(`API Key ending in ...${keySuffix} failed (Index: ${currentKeyIndex}). Error: ${error}`);
       
       // Rotate to the next key immediately
       currentKeyIndex = (currentKeyIndex + 1) % YOUTUBE_API_KEYS.length;
