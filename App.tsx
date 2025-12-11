@@ -616,7 +616,7 @@ const App: React.FC = () => {
                         setPlaylistFormName(''); // Clear name so user can type custom name
                         setModalMode('CREATE_PLAYLIST');
                       }}
-                      className="flex items-center gap-2 border-2 border-black border-dashed p-3 hover:bg-neo-yellow font-bold text-sm"
+                      className="w-full flex items-center justify-center gap-2 border-2 border-black border-dashed p-3 hover:bg-neo-yellow font-bold text-sm"
                     >
                       <span className="text-xl">+</span> Create New Playlist
                     </button>
@@ -775,14 +775,16 @@ const App: React.FC = () => {
 
           {/* MOBILE DRAWER (For Library) */}
           {isSidebarOpen && (
-            <div className="md:hidden absolute inset-0 z-30 bg-white flex flex-col p-4 animate-in slide-in-from-left duration-200">
+            <div className="md:hidden absolute inset-0 z-50 bg-white flex flex-col p-4 animate-in slide-in-from-left duration-200">
                <div className="flex justify-between items-center mb-6 border-b-4 border-black pb-2">
                  <h2 className="font-display font-black text-2xl">LIBRARY</h2>
                  <button onClick={() => setIsSidebarOpen(false)} className="border-2 border-black px-2 font-bold bg-red-500 text-white">X</button>
                </div>
                
                <div className="flex-1 overflow-y-auto">
-                 <button onClick={handleCreatePlaylist} className="w-full border-2 border-black border-dashed p-3 mb-4 font-bold bg-neo-yellow">+ NEW PLAYLIST</button>
+                 <button onClick={handleCreatePlaylist} className="flex justify-center items-center w-full border-2 border-black border-dashed p-3 mb-4 font-bold bg-neo-yellow shadow-neo-xs active:shadow-none active:translate-y-1 transition-all">
+                    + NEW PLAYLIST
+                 </button>
                  
                  {savedPlaylists.map(pl => (
                    <div key={pl.id} className="border-2 border-black p-3 mb-2 flex justify-between items-center bg-gray-50" onClick={() => loadPlaylistToQueue(pl)}>
