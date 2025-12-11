@@ -85,7 +85,7 @@ const App: React.FC = () => {
     initSearch();
   }, []);
 
-  // Timer loop for progress bar
+  // Timer loop for progress bar AND MediaSession Position Sync
   useEffect(() => {
     if (isPlaying && playerObj) {
       timerRef.current = window.setInterval(() => {
@@ -96,6 +96,19 @@ const App: React.FC = () => {
           setCurrentTime(time);
           if (dur && dur > 0 && dur !== duration) {
             setDuration(dur);
+          }
+
+          // SYNC DEVICE LOCK SCREEN SLIDER
+          if ('mediaSession' in navigator) {
+            try {
+              navigator.mediaSession.setPositionState({
+                duration: dur || 0,
+                playbackRate: 1,
+                position: time || 0,
+              });
+            } catch (e) {
+              // Ignore position errors
+            }
           }
         }
       }, 500); 
@@ -197,8 +210,31 @@ const App: React.FC = () => {
   }, [isPlaying, playerObj]);
 
 
+  // --- Logic Helpers with Circular Navigation ---
+
+  const playNext = useCallback(() => {
+    if (playlist.length === 0) return;
+    // Circular Logic: If at end, go to 0
+    const nextIndex = (currentIndex + 1) % playlist.length;
+    setCurrentIndex(nextIndex);
+    
+    // Force Playing State
+    setIsPlaying(true);
+  }, [currentIndex, playlist.length]);
+
+  const playPrev = useCallback(() => {
+    if (playlist.length === 0) return;
+    // Circular Logic: If at 0, go to length - 1
+    const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+    setCurrentIndex(prevIndex);
+    
+    // Force Playing State
+    setIsPlaying(true);
+  }, [currentIndex, playlist.length]);
+
+
   // --- MEDIA SESSION API INTEGRATION ---
-  // Updated with robust handlers for iOS
+  // Connects hardware buttons (Notification/Lock Screen) to App functions
   useEffect(() => {
     if ('mediaSession' in navigator && currentVideo) {
       // 1. Set Metadata
@@ -215,19 +251,24 @@ const App: React.FC = () => {
       });
 
       // 2. Set Action Handlers
-      // CRITICAL: We update state locally, the useEffect above handles the actual hardware sync
+      // These call the Circular Navigation functions defined above
+      
       navigator.mediaSession.setActionHandler('play', () => {
         setIsPlaying(true);
-        navigator.mediaSession.playbackState = 'playing'; 
       });
 
       navigator.mediaSession.setActionHandler('pause', () => {
         setIsPlaying(false);
-        navigator.mediaSession.playbackState = 'paused';
+      });
+
+      navigator.mediaSession.setActionHandler('stop', () => {
+        setIsPlaying(false);
       });
 
       navigator.mediaSession.setActionHandler('previoustrack', playPrev);
+      
       navigator.mediaSession.setActionHandler('nexttrack', playNext);
+
       navigator.mediaSession.setActionHandler('seekto', (details) => {
         if (details.seekTime && playerObj) {
             playerObj.seekTo(details.seekTime);
@@ -235,7 +276,8 @@ const App: React.FC = () => {
         }
       });
     }
-  }, [currentVideo, playerObj, currentIndex, playlist]); 
+  }, [currentVideo, playerObj, currentIndex, playlist, playNext, playPrev]); 
+
 
   // --- AUDIO CONTEXT HACK (Secondary Backup) ---
   const playSilentPing = () => {
@@ -283,7 +325,7 @@ const App: React.FC = () => {
       }
   };
 
-  // --- Logic Helpers ---
+  // --- Other Helpers ---
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -329,23 +371,6 @@ const App: React.FC = () => {
     setQuery(suggestion);
     executeSearch(suggestion);
   };
-
-  const playNext = useCallback(() => {
-    if (playlist.length === 0) return;
-    const nextIndex = (currentIndex + 1) % playlist.length;
-    setCurrentIndex(nextIndex);
-    // CRITICAL: Ensure we stay playing.
-    // iOS kills the session if we pause, even briefly, during a lock-screen interaction.
-    // We explicitly set this true. The effect hook will handle the player/ghost syncing.
-    setIsPlaying(true);
-  }, [currentIndex, playlist.length]);
-
-  const playPrev = useCallback(() => {
-    if (playlist.length === 0) return;
-    const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-    setCurrentIndex(prevIndex);
-    setIsPlaying(true);
-  }, [currentIndex, playlist.length]);
 
   const handleVideoEnd = () => {
     if (loopMode === LoopMode.ONE) {
