@@ -19,23 +19,23 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   setLoopMode,
 }) => {
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
+    <div className="flex flex-nowrap items-center gap-1 sm:gap-2">
       
       {/* Visual Toggle */}
       <button
         onClick={() => setShowVideo(!showVideo)}
-        className={`h-8 border-2 border-black px-2 text-xs font-bold transition-colors ${
+        className={`flex h-8 w-12 sm:w-auto items-center justify-center border-2 border-black px-1 text-[10px] sm:text-xs font-bold transition-colors ${
           showVideo ? 'bg-neo-blue text-white' : 'bg-gray-200 text-gray-400'
         }`}
         title="Toggle Video Preview"
       >
-        {showVideo ? 'VID:ON' : 'VID:OFF'}
+        {showVideo ? 'VID' : 'OFF'}
       </button>
 
       {/* Loop Mode */}
       <button
         onClick={() => setLoopMode(loopMode === LoopMode.ONE ? LoopMode.ALL : LoopMode.ONE)}
-        className={`h-8 border-2 border-black px-2 text-xs font-bold transition-colors ${
+        className={`flex h-8 w-8 sm:w-auto items-center justify-center border-2 border-black px-1 text-[10px] sm:text-xs font-bold transition-colors ${
           loopMode === LoopMode.ONE ? 'bg-neo-pink text-white' : 'bg-white text-black'
         }`}
         title="Toggle Loop Mode"
@@ -47,7 +47,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       <select
         value={videoQuality}
         onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}
-        className="h-8 border-2 border-black bg-white px-1 text-xs font-bold focus:outline-none"
+        className="h-8 w-14 sm:w-auto border-2 border-black bg-white px-0 sm:px-1 text-[10px] sm:text-xs font-bold focus:outline-none"
         title="Video Quality"
       >
         <option value={VideoQuality.SMALL}>240p</option>

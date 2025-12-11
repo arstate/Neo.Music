@@ -73,12 +73,13 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">
+    // Use h-[100dvh] for better mobile browser support
+    <div className="flex h-[100dvh] w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">
       
       {/* Top Section: Sidebar + Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         
-        {/* SIDEBAR (Library/Queue) */}
+        {/* SIDEBAR (Library/Queue) - Hidden on Mobile */}
         <aside className="hidden w-80 flex-col border-r-4 border-black bg-white md:flex">
           {/* Logo */}
           <div className="border-b-4 border-black bg-neo-yellow p-6">
@@ -88,7 +89,7 @@ const App: React.FC = () => {
           </div>
           
           {/* Playlist Component fills the rest */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
              <Playlist 
                 videos={playlist} 
                 currentIndex={currentIndex} 
@@ -99,34 +100,39 @@ const App: React.FC = () => {
         </aside>
 
         {/* MAIN CONTENT */}
-        <main className="flex flex-1 flex-col bg-[#e5e7eb] relative">
+        <main className="flex flex-1 flex-col bg-[#e5e7eb] relative min-w-0">
           {/* Top Bar: Search */}
-          <div className="sticky top-0 z-20 flex w-full gap-2 border-b-4 border-black bg-white p-4">
+          <div className="sticky top-0 z-20 flex w-full items-center gap-2 border-b-4 border-black bg-white p-2 sm:p-4">
              {/* Mobile Logo (Visible only on small screens) */}
-             <div className="md:hidden flex items-center pr-2 font-display font-black">N.M</div>
+             <div className="md:hidden flex items-center pr-2 font-display font-black text-lg">N.M</div>
 
-            <form onSubmit={handleSearch} className="flex flex-1 gap-2">
+            <form onSubmit={handleSearch} className="flex flex-1 gap-1 sm:gap-2 min-w-0">
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="SEARCH YOUTUBE..."
-                className="w-full flex-1 border-4 border-black bg-white p-2 font-bold uppercase outline-none placeholder:text-gray-400 focus:bg-neo-yellow focus:placeholder:text-black"
+                placeholder="SEARCH..."
+                className="w-full flex-1 border-2 sm:border-4 border-black bg-white p-2 font-bold uppercase outline-none placeholder:text-gray-400 focus:bg-neo-yellow focus:placeholder:text-black text-sm sm:text-base"
               />
               <button
                 type="submit"
-                className="hidden border-4 border-black bg-neo-green px-6 font-display font-bold uppercase text-black shadow-neo-sm transition-transform active:translate-y-1 active:shadow-none sm:block"
+                className="flex items-center justify-center border-2 sm:border-4 border-black bg-neo-green px-3 sm:px-6 font-display font-bold uppercase text-black shadow-neo-sm transition-transform active:translate-y-1 active:shadow-none"
               >
-                Find
+                <span className="hidden sm:inline">Find</span>
+                <span className="sm:hidden">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="square" strokeLinejoin="miter" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                  </svg>
+                </span>
               </button>
             </form>
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-8">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 custom-scrollbar">
             <div className="mx-auto max-w-4xl">
               {/* Video Player Container */}
-              <div className="mb-6 w-full border-4 border-black bg-black shadow-neo">
+              <div className="mb-4 sm:mb-6 w-full border-4 border-black bg-black shadow-neo">
                 {currentVideo ? (
                     <PlayerScreen 
                       videoId={currentVideo.id}
@@ -139,17 +145,17 @@ const App: React.FC = () => {
                       setPlayerRef={setPlayerObj}
                     />
                 ) : (
-                  <div className="flex h-64 sm:h-96 w-full items-center justify-center bg-neo-blue text-white">
-                    <div className="text-center">
-                       <h2 className="font-display text-4xl font-black">NO TAPE</h2>
-                       <p className="mt-2 font-mono">USE SEARCH TO INSERT CASSETTE</p>
+                  <div className="flex h-48 sm:h-96 w-full items-center justify-center bg-neo-blue text-white">
+                    <div className="text-center p-4">
+                       <h2 className="font-display text-2xl sm:text-4xl font-black">NO TAPE</h2>
+                       <p className="mt-2 font-mono text-xs sm:text-base">SEARCH TO PLAY</p>
                     </div>
                   </div>
                 )}
               </div>
               
               {/* Mobile View Playlist (Only shows on mobile) */}
-              <div className="md:hidden">
+              <div className="md:hidden pb-4">
                  <Playlist 
                     videos={playlist} 
                     currentIndex={currentIndex} 
@@ -163,37 +169,43 @@ const App: React.FC = () => {
       </div>
 
       {/* FOOTER (Controls & Settings) */}
-      <footer className="z-50 flex h-auto flex-col gap-4 border-t-4 border-black bg-white p-2 sm:h-24 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:px-4 shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)]">
-        
-        {/* Left: Current Info */}
-        <div className="w-full sm:w-1/3">
-           <div className="overflow-hidden border-2 border-black bg-neo-yellow p-1 sm:p-2">
-              <div className="whitespace-nowrap font-mono text-xs sm:text-sm font-bold text-black animate-marquee">
-                {currentVideo ? `${currentVideo.title} /// ${currentVideo.channelTitle}` : "WAITING FOR INPUT..."}
+      <footer className="z-50 flex-none border-t-4 border-black bg-white p-2 shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          
+          {/* Top Row on Mobile: Song Info */}
+          <div className="w-full sm:w-1/3">
+             <div className="overflow-hidden border-2 border-black bg-neo-yellow p-1 sm:p-2">
+                <div className="whitespace-nowrap font-mono text-xs sm:text-sm font-bold text-black animate-marquee">
+                  {currentVideo ? `${currentVideo.title} /// ${currentVideo.channelTitle}` : "WAITING FOR INPUT..."}
+                </div>
               </div>
-            </div>
-        </div>
+          </div>
 
-        {/* Center: Controls */}
-        <div className="flex w-full justify-center sm:w-1/3">
-           <Controls 
-              isPlaying={isPlaying} 
-              onPlayPause={togglePlayPause} 
-              onNext={playNext} 
-              onPrev={playPrev}
-            />
-        </div>
+          {/* Bottom Row on Mobile: Controls + Settings combined */}
+          <div className="flex items-center justify-between gap-2 sm:contents">
+             {/* Center: Controls */}
+             <div className="flex flex-1 justify-center sm:w-1/3">
+                <Controls 
+                    isPlaying={isPlaying} 
+                    onPlayPause={togglePlayPause} 
+                    onNext={playNext} 
+                    onPrev={playPrev}
+                  />
+             </div>
 
-        {/* Right: Settings (Volume/Config style) */}
-        <div className="flex w-full justify-center sm:w-1/3 sm:justify-end">
-          <SettingsPanel 
-            showVideo={showVideo} 
-            setShowVideo={setShowVideo}
-            videoQuality={videoQuality}
-            setVideoQuality={setVideoQuality}
-            loopMode={loopMode}
-            setLoopMode={setLoopMode}
-          />
+             {/* Right: Settings */}
+             <div className="flex flex-none sm:w-1/3 sm:justify-end">
+                <SettingsPanel 
+                  showVideo={showVideo} 
+                  setShowVideo={setShowVideo}
+                  videoQuality={videoQuality}
+                  setVideoQuality={setVideoQuality}
+                  loopMode={loopMode}
+                  setLoopMode={setLoopMode}
+                />
+             </div>
+          </div>
+
         </div>
       </footer>
     </div>
