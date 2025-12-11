@@ -50,6 +50,18 @@ const App: React.FC = () => {
   // Wake Lock Ref
   const wakeLockRef = useRef<any>(null);
 
+  // Refs for MediaSession (Avoid stale closures without re-binding handlers)
+  const playlistRef = useRef(playlist);
+  const currentIndexRef = useRef(currentIndex);
+  const isPlayingRef = useRef(isPlaying);
+
+  // Update refs whenever state changes
+  useEffect(() => {
+    playlistRef.current = playlist;
+    currentIndexRef.current = currentIndex;
+    isPlayingRef.current = isPlaying;
+  }, [playlist, currentIndex, isPlaying]);
+
   // Handle PWA Install Prompt
   useEffect(() => {
     const handler = (e: any) => {
@@ -101,11 +113,13 @@ const App: React.FC = () => {
           // SYNC DEVICE LOCK SCREEN SLIDER
           if ('mediaSession' in navigator) {
             try {
-              navigator.mediaSession.setPositionState({
-                duration: dur || 0,
-                playbackRate: 1,
-                position: time || 0,
-              });
+              if (!isNaN(dur) && !isNaN(time)) {
+                navigator.mediaSession.setPositionState({
+                  duration: dur,
+                  playbackRate: 1,
+                  position: time,
+                });
+              }
             } catch (e) {
               // Ignore position errors
             }
@@ -151,8 +165,6 @@ const App: React.FC = () => {
   };
 
   // --- MASTER PLAYBACK CONTROLLER ---
-  // This syncs the "Ghost" HTML5 audio with the YouTube player.
-  // This is CRITICAL for iOS.
   useEffect(() => {
     if (isPlaying) {
       // 1. YouTube Play
@@ -162,7 +174,6 @@ const App: React.FC = () => {
       
       // 2. Ghost Audio Play (Keeps iOS Session Alive)
       if (ghostAudioRef.current) {
-        // We set volume to almost zero, but not muted (muted often kills bg tasks)
         ghostAudioRef.current.volume = 0.05; 
         const playPromise = ghostAudioRef.current.play();
         if (playPromise !== undefined) {
@@ -178,7 +189,7 @@ const App: React.FC = () => {
       // 4. Wake Lock
       requestWakeLock();
 
-      // 5. Update Media Session State explicitly
+      // 5. Update Media Session State
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing';
       }
@@ -190,8 +201,6 @@ const App: React.FC = () => {
       }
 
       // 2. Ghost Audio Pause
-      // NOTE: We only pause ghost audio if the USER explicitly paused.
-      // If logic is just switching tracks, isPlaying stays true, so this block won't run.
       if (ghostAudioRef.current) {
         ghostAudioRef.current.pause();
       }
@@ -211,33 +220,82 @@ const App: React.FC = () => {
 
 
   // --- Logic Helpers with Circular Navigation ---
+  // Note: These functions update state, which updates the refs in the Effect above.
 
   const playNext = useCallback(() => {
-    if (playlist.length === 0) return;
-    // Circular Logic: If at end, go to 0
-    const nextIndex = (currentIndex + 1) % playlist.length;
-    setCurrentIndex(nextIndex);
+    const pList = playlistRef.current; // Read from Ref for immediate logic if needed inside callback
+    if (pList.length === 0) return;
     
-    // Force Playing State
+    // We use the functional update to ensure we are using the absolute latest state
+    // but relying on refs inside MediaSession handlers is safer.
+    setCurrentIndex(prev => (prev + 1) % pList.length);
     setIsPlaying(true);
-  }, [currentIndex, playlist.length]);
+  }, []); // Empty deps because we read from ref inside or use functional state update
 
   const playPrev = useCallback(() => {
-    if (playlist.length === 0) return;
-    // Circular Logic: If at 0, go to length - 1
-    const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-    setCurrentIndex(prevIndex);
+    const pList = playlistRef.current;
+    if (pList.length === 0) return;
     
-    // Force Playing State
+    setCurrentIndex(prev => (prev - 1 + pList.length) % pList.length);
     setIsPlaying(true);
-  }, [currentIndex, playlist.length]);
-
+  }, []);
 
   // --- MEDIA SESSION API INTEGRATION ---
-  // Connects hardware buttons (Notification/Lock Screen) to App functions
+  
+  // 1. Stable Action Handlers (Registered ONCE)
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      
+      const handleNextTrack = () => {
+        const pList = playlistRef.current;
+        const cIndex = currentIndexRef.current;
+        if (pList.length === 0) return;
+        const nextIndex = (cIndex + 1) % pList.length;
+        setCurrentIndex(nextIndex);
+        setIsPlaying(true);
+      };
+
+      const handlePrevTrack = () => {
+        const pList = playlistRef.current;
+        const cIndex = currentIndexRef.current;
+        if (pList.length === 0) return;
+        const prevIndex = (cIndex - 1 + pList.length) % pList.length;
+        setCurrentIndex(prevIndex);
+        setIsPlaying(true);
+      };
+
+      const handlePlay = () => setIsPlaying(true);
+      const handlePause = () => setIsPlaying(false);
+      const handleStop = () => setIsPlaying(false);
+
+      // Register handlers using these local functions that read from REFS
+      navigator.mediaSession.setActionHandler('play', handlePlay);
+      navigator.mediaSession.setActionHandler('pause', handlePause);
+      navigator.mediaSession.setActionHandler('stop', handleStop);
+      navigator.mediaSession.setActionHandler('previoustrack', handlePrevTrack);
+      navigator.mediaSession.setActionHandler('nexttrack', handleNextTrack);
+      
+      // Seek handler needs access to playerObj, which changes, so we might need a ref for that too
+      // or just check the state. For now, we skip Seek in the 'once' block or handle it separately.
+      // We will handle Seek separately or use a Player Ref.
+    }
+  }, []); // Run ONCE on mount. Handlers read from Refs.
+
+  // 1b. Seek Handler (Needs Player Object access)
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+            if (details.seekTime && playerObj) {
+                playerObj.seekTo(details.seekTime);
+                setCurrentTime(details.seekTime);
+            }
+        });
+    }
+  }, [playerObj]); // Updates when player instance changes
+
+  // 2. Metadata Updates (Runs when video changes)
   useEffect(() => {
     if ('mediaSession' in navigator && currentVideo) {
-      // 1. Set Metadata
       navigator.mediaSession.metadata = new MediaMetadata({
         title: currentVideo.title,
         artist: currentVideo.channelTitle,
@@ -249,34 +307,8 @@ const App: React.FC = () => {
           { src: currentVideo.thumbnail, sizes: '512x512', type: 'image/jpg' },
         ]
       });
-
-      // 2. Set Action Handlers
-      // These call the Circular Navigation functions defined above
-      
-      navigator.mediaSession.setActionHandler('play', () => {
-        setIsPlaying(true);
-      });
-
-      navigator.mediaSession.setActionHandler('pause', () => {
-        setIsPlaying(false);
-      });
-
-      navigator.mediaSession.setActionHandler('stop', () => {
-        setIsPlaying(false);
-      });
-
-      navigator.mediaSession.setActionHandler('previoustrack', playPrev);
-      
-      navigator.mediaSession.setActionHandler('nexttrack', playNext);
-
-      navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime && playerObj) {
-            playerObj.seekTo(details.seekTime);
-            setCurrentTime(details.seekTime);
-        }
-      });
     }
-  }, [currentVideo, playerObj, currentIndex, playlist, playNext, playPrev]); 
+  }, [currentVideo]); // Only update metadata when video changes
 
 
   // --- AUDIO CONTEXT HACK (Secondary Backup) ---
@@ -348,7 +380,6 @@ const App: React.FC = () => {
     if (!searchQuery.trim()) return;
     setShowSuggestions(false);
     
-    // CRITICAL FIX: Wrapped in try-catch to prevent white-screen crashes on API errors
     try {
       const results = await searchVideos(searchQuery, 10);
       if (results && results.length > 0) {
@@ -358,7 +389,6 @@ const App: React.FC = () => {
       }
     } catch (error) {
       console.error("Search failed:", error);
-      // Optional: Add a toast notification here if desired
     }
   };
 
@@ -381,28 +411,17 @@ const App: React.FC = () => {
     }
   };
 
-  // This function is passed to the YouTube component.
-  // We use it to detect "Ready" or "Playing" to confirm we are good.
-  // BUT we do NOT use it to set IsPlaying to false if the player sends a pause event caused by buffering/loading.
   const handlePlayerStateChange = (event: any) => {
       // 1 = Playing, 2 = Paused, 3 = Buffering, 0 = Ended
       if (event.data === 1) {
-          // If the player started playing, ensure our state matches
           if (!isPlaying) setIsPlaying(true);
       }
-      // If event.data === 2 (Paused), we IGNORE it here.
-      // Why? Because YouTube fires "Paused" when seeking or loading a new video.
-      // If we setIsPlaying(false) here, it kills the Ghost Audio, which kills the iOS background session.
-      // We only let the User Controls (togglePlayPause) or MediaSession "pause" handler change the state to false.
-      
       if (event.data === 0) {
         handleVideoEnd();
       }
   };
 
   const togglePlayPause = () => {
-    // If we are starting playback, ensure we are in a user-interaction context
-    // to unlock audio contexts and play hidden audio
     if (!isPlaying) {
       if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
         audioContextRef.current.resume();
@@ -466,7 +485,6 @@ const App: React.FC = () => {
            ghostAudioRef.current.play().catch(e => console.log("Bg mode start error", e));
         }
 
-        // UX: Defocus
         try {
           window.blur(); 
         } catch (e) {}
@@ -476,8 +494,6 @@ const App: React.FC = () => {
     }
   };
 
-  // LOGIC: If Data Saver OR Background Mode OR ShowVideo is false -> Force ZERO/10p (which maps to tiny)
-  // This satisfies: "untuk mode no preview pengaturan resolusinya di set ke 10p"
   const effectiveQuality = (isDataSaver || isBackgroundMode || !showVideo) 
     ? VideoQuality.ZERO 
     : videoQuality;
@@ -485,16 +501,14 @@ const App: React.FC = () => {
   return (
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">
       
-      {/* THE GHOST PLAYER - Crucial for iOS Backgrounding */}
-      {/* Plays a silent loop. iOS respects this more than YouTube Iframe. */}
-      {/* We add controls=true temporarily for debugging or if browser forces it, but usually hidden is fine if we trigger play correctly */}
+      {/* THE GHOST PLAYER - Changed from hidden to opacity-0 to prevent browser deprioritization */}
       <audio 
         ref={ghostAudioRef}
         src={SILENT_AUDIO_URI} 
         loop 
         playsInline 
         autoPlay={false}
-        className="hidden" 
+        className="absolute opacity-0 pointer-events-none w-px h-px overflow-hidden" 
       />
 
       {/* BACKGROUND MODE OVERLAY */}
