@@ -6,6 +6,9 @@ import Controls from './components/Controls';
 import SettingsPanel from './components/SettingsPanel';
 import Playlist from './components/Playlist';
 
+// Tiny silent mp3 to trick iOS into keeping the session alive
+const SILENT_AUDIO_URI = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAASCCOzuFAAAAAAAAAAAAAAAAAAAA//OEZAAAAAAABEAAAAAAAAAAABAAAtxAAStAABAAAAAAAAAAAAAAA//OEZAAAAAAABEAAAAAAAAAAABAAAtxAAStAABAAAAAAAAAAAAAAA//OEZAAAAAAABEAAAAAAAAAAABAAAtxAAStAABAAAAAAAAAAAAAAA//OEZAAAAAAABEAAAAAAAAAAABAAAtxAAStAABAAAAAAAAAAAAAAA//OEZAAAAAAABEAAAAAAAAAAABAAAtxAAStAABAAAAAAAAAAAAAAA';
+
 const App: React.FC = () => {
   // State
   const [query, setQuery] = useState('');
@@ -37,9 +40,12 @@ const App: React.FC = () => {
   const timerRef = useRef<number | null>(null);
   const debounceRef = useRef<number | null>(null);
   
-  // Audio Context Ref for Background Hack
+  // Audio Context Ref for Background Hack (Android/Generic)
   const audioContextRef = useRef<AudioContext | null>(null);
   const keepAliveIntervalRef = useRef<number | null>(null);
+
+  // Ghost Player Ref (iOS Fix)
+  const ghostAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Wake Lock Ref
   const wakeLockRef = useRef<any>(null);
@@ -63,7 +69,7 @@ const App: React.FC = () => {
     }
   };
 
-  // Initial Search for "dj tiktok" - LIMIT TO 3 RESULTS TO SAVE QUOTA
+  // Initial Search
   useEffect(() => {
     const initSearch = async () => {
       try {
@@ -89,7 +95,7 @@ const App: React.FC = () => {
         if (dur && dur > 0 && dur !== duration) {
           setDuration(dur);
         }
-      }, 500); // Update every 500ms
+      }, 500); 
     } else {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -106,7 +112,7 @@ const App: React.FC = () => {
     setDuration(0);
   }, [currentIndex]);
 
-  // --- WAKE LOCK API (Prevents screen sleep) ---
+  // --- WAKE LOCK API ---
   const requestWakeLock = async () => {
     if ('wakeLock' in navigator) {
       try {
@@ -128,15 +134,57 @@ const App: React.FC = () => {
     }
   };
 
+  // --- MASTER PLAYBACK CONTROLLER ---
+  // This syncs the "Ghost" HTML5 audio with the YouTube player.
+  // This is CRITICAL for iOS.
   useEffect(() => {
     if (isPlaying) {
-      requestWakeLock();
-    } else {
-      releaseWakeLock();
-    }
-  }, [isPlaying]);
+      // 1. YouTube Play
+      playerObj?.playVideo();
+      
+      // 2. Ghost Audio Play (Keeps iOS Session Alive)
+      if (ghostAudioRef.current) {
+        // We set volume to almost zero, but not muted (muted often kills bg tasks)
+        ghostAudioRef.current.volume = 0.01; 
+        ghostAudioRef.current.play().catch(e => console.warn("Ghost play failed", e));
+      }
 
-  // --- MEDIA SESSION API INTEGRATION (For Background Play) ---
+      // 3. Keep Alive Ping (AudioContext)
+      startKeepAlive();
+      
+      // 4. Wake Lock
+      requestWakeLock();
+
+      // 5. Update Media Session State explicitly
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'playing';
+      }
+
+    } else {
+      // 1. YouTube Pause
+      playerObj?.pauseVideo();
+
+      // 2. Ghost Audio Pause
+      if (ghostAudioRef.current) {
+        ghostAudioRef.current.pause();
+      }
+
+      // 3. Stop Keep Alive
+      stopKeepAlive();
+
+      // 4. Release Wake Lock
+      releaseWakeLock();
+
+      // 5. Update Media Session State
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'paused';
+      }
+    }
+  }, [isPlaying, playerObj]);
+
+
+  // --- MEDIA SESSION API INTEGRATION ---
+  // Updated with robust handlers for iOS
   useEffect(() => {
     if ('mediaSession' in navigator && currentVideo) {
       // 1. Set Metadata
@@ -153,52 +201,45 @@ const App: React.FC = () => {
       });
 
       // 2. Set Action Handlers
+      // CRITICAL: We update state locally, the useEffect above handles the actual hardware sync
       navigator.mediaSession.setActionHandler('play', () => {
-        playerObj?.playVideo();
         setIsPlaying(true);
+        // FORCE status update immediately for iOS so notification doesn't vanish
+        navigator.mediaSession.playbackState = 'playing'; 
       });
+
       navigator.mediaSession.setActionHandler('pause', () => {
-        playerObj?.pauseVideo();
         setIsPlaying(false);
+        navigator.mediaSession.playbackState = 'paused';
       });
+
       navigator.mediaSession.setActionHandler('previoustrack', playPrev);
       navigator.mediaSession.setActionHandler('nexttrack', playNext);
       navigator.mediaSession.setActionHandler('seekto', (details) => {
         if (details.seekTime && playerObj) {
             playerObj.seekTo(details.seekTime);
+            setCurrentTime(details.seekTime);
         }
       });
     }
   }, [currentVideo, playerObj, currentIndex, playlist]); 
 
-  // Update Media Session Playback State
-  useEffect(() => {
-    if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
-    }
-  }, [isPlaying]);
-
-  // --- ULTIMATE BACKGROUND AUDIO FIX (Samsung/iOS) ---
-  // A standard oscillator isn't enough for aggressive Android battery savers.
-  // We need a persistent interval that pings the audio hardware repeatedly.
-  
+  // --- AUDIO CONTEXT HACK (Secondary Backup) ---
   const playSilentPing = () => {
     if (audioContextRef.current && audioContextRef.current.state === 'running') {
         const osc = audioContextRef.current.createOscillator();
         const gain = audioContextRef.current.createGain();
-        gain.gain.value = 0.001; // Barely audible
+        gain.gain.value = 0.001; 
         osc.connect(gain);
         gain.connect(audioContextRef.current.destination);
         osc.start();
-        osc.stop(audioContextRef.current.currentTime + 0.1); // Short ping
+        osc.stop(audioContextRef.current.currentTime + 0.1); 
     }
   };
 
   const startKeepAlive = () => {
-    // Stop existing
     if (keepAliveIntervalRef.current) clearInterval(keepAliveIntervalRef.current);
 
-    // Initialize Context if missing
     if (!audioContextRef.current) {
        // @ts-ignore
        const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -207,18 +248,15 @@ const App: React.FC = () => {
        }
     }
 
-    // Resume context
     if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
         audioContextRef.current.resume();
     }
 
-    // Start aggressive loop (every 15s)
-    // This tricks Samsung OneUI/iOS into thinking "Music is actively streaming"
     keepAliveIntervalRef.current = window.setInterval(() => {
         playSilentPing();
     }, 15000); 
     
-    playSilentPing(); // Immediate ping
+    playSilentPing(); 
   };
 
   const stopKeepAlive = () => {
@@ -228,17 +266,8 @@ const App: React.FC = () => {
       }
   };
 
-  useEffect(() => {
-      if (isPlaying) {
-          startKeepAlive();
-      } else {
-          stopKeepAlive();
-      }
-      return () => stopKeepAlive();
-  }, [isPlaying]);
+  // --- Logic Helpers ---
 
-
-  // Handle Search Input Change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
@@ -280,12 +309,15 @@ const App: React.FC = () => {
     if (playlist.length === 0) return;
     const nextIndex = (currentIndex + 1) % playlist.length;
     setCurrentIndex(nextIndex);
+    // Ensure we stay playing
+    setIsPlaying(true);
   }, [currentIndex, playlist.length]);
 
   const playPrev = () => {
     if (playlist.length === 0) return;
     const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
     setCurrentIndex(prevIndex);
+    setIsPlaying(true);
   };
 
   const handleVideoEnd = () => {
@@ -298,15 +330,18 @@ const App: React.FC = () => {
   };
 
   const togglePlayPause = () => {
-    if (!playerObj) return;
-    if (isPlaying) {
-      playerObj.pauseVideo();
-    } else {
-      // Must resume AudioContext on user interaction
+    // If we are starting playback, ensure we are in a user-interaction context
+    // to unlock audio contexts and play hidden audio
+    if (!isPlaying) {
       if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
         audioContextRef.current.resume();
       }
-      playerObj.playVideo();
+      if (ghostAudioRef.current) {
+        ghostAudioRef.current.play().catch(() => {});
+      }
+      setIsPlaying(true);
+    } else {
+      setIsPlaying(false);
     }
   };
 
@@ -351,10 +386,16 @@ const App: React.FC = () => {
     
     if (newState) {
         setShowVideo(false);
-        startKeepAlive(); // Force audio loop immediately
-        requestWakeLock(); // Force wake lock
+        setIsPlaying(true); // Force play state
+        startKeepAlive(); 
+        requestWakeLock();
         
-        // UX: Defocus to simulate minimize
+        // Ensure ghost audio is active
+        if (ghostAudioRef.current) {
+           ghostAudioRef.current.play().catch(e => console.log("Bg mode start error", e));
+        }
+
+        // UX: Defocus
         try {
           window.blur(); 
         } catch (e) {}
@@ -369,6 +410,17 @@ const App: React.FC = () => {
   return (
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">
       
+      {/* THE GHOST PLAYER - Crucial for iOS Backgrounding */}
+      {/* Plays a silent loop. iOS respects this more than YouTube Iframe. */}
+      <audio 
+        ref={ghostAudioRef}
+        src={SILENT_AUDIO_URI} 
+        loop 
+        playsInline 
+        autoPlay={false}
+        className="hidden" 
+      />
+
       {/* BACKGROUND MODE OVERLAY */}
       {isBackgroundMode && (
           <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-neo-yellow p-6 text-center">
