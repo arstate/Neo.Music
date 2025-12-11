@@ -5,7 +5,7 @@ import { VideoResult } from '../types';
 // Track current key index globally across the session
 let currentKeyIndex = 0;
 
-export const searchVideos = async (query: string, attempt = 0): Promise<VideoResult[]> => {
+export const searchVideos = async (query: string, limit = 10, attempt = 0): Promise<VideoResult[]> => {
   if (!query) return [];
 
   // Stop recursion if we've tried all keys
@@ -19,7 +19,7 @@ export const searchVideos = async (query: string, attempt = 0): Promise<VideoRes
     
     const url = new URL(YOUTUBE_SEARCH_URL);
     url.searchParams.append('part', 'snippet');
-    url.searchParams.append('maxResults', '10');
+    url.searchParams.append('maxResults', limit.toString()); // Use the dynamic limit
     url.searchParams.append('q', query);
     url.searchParams.append('type', 'video');
     url.searchParams.append('key', currentKey);
@@ -33,8 +33,8 @@ export const searchVideos = async (query: string, attempt = 0): Promise<VideoRes
         // Rotate to next key
         currentKeyIndex = (currentKeyIndex + 1) % YOUTUBE_API_KEYS.length;
         
-        // Retry recursively
-        return searchVideos(query, attempt + 1);
+        // Retry recursively, passing the limit
+        return searchVideos(query, limit, attempt + 1);
     }
 
     const data = await response.json();
@@ -50,7 +50,7 @@ export const searchVideos = async (query: string, attempt = 0): Promise<VideoRes
     console.error('Network error fetching YouTube videos:', error);
     // Even on network error, try switching just in case it's a specific key issue
     currentKeyIndex = (currentKeyIndex + 1) % YOUTUBE_API_KEYS.length;
-    return searchVideos(query, attempt + 1);
+    return searchVideos(query, limit, attempt + 1);
   }
 };
 

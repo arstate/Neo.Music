@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { VideoResult, VideoQuality, AudioQuality, LoopMode } from './types';
 import { searchVideos, getSearchSuggestions } from './services/youtubeService';
@@ -36,11 +37,11 @@ const App: React.FC = () => {
   // Audio Context Ref for iOS Background Hack
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Initial Search for "dj tiktok"
+  // Initial Search for "dj tiktok" - LIMIT TO 3 RESULTS TO SAVE QUOTA
   useEffect(() => {
     const initSearch = async () => {
       try {
-        const results = await searchVideos("dj tiktok");
+        const results = await searchVideos("dj tiktok", 3);
         if (results && results.length > 0) {
           setPlaylist(results);
           setCurrentIndex(0);
@@ -176,7 +177,8 @@ const App: React.FC = () => {
   const executeSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
     setShowSuggestions(false); // Hide suggestions
-    const results = await searchVideos(searchQuery);
+    // Manual search gets 10 results
+    const results = await searchVideos(searchQuery, 10);
     if (results.length > 0) {
       setPlaylist(results);
       setCurrentIndex(0);
