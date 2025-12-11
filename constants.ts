@@ -1,6 +1,13 @@
-// In a real production app, use import.meta.env.VITE_YOUTUBE_API_KEY
-// Using the provided key as requested.
-export const YOUTUBE_API_KEY = 'AIzaSyCe5-HkDEUTmGwjBQ8TrL-sxs_SMLLTjVA';
+
+// List of API Keys for rotation strategy
+export const YOUTUBE_API_KEYS = [
+  'AIzaSyAs8bePXF_yYJdgGKbFLTVLq06DTwngOQQ',
+  'AIzaSyCe5-HkDEUTmGwjBQ8TrL-sxs_SMLLTjVA',
+  'AIzaSyAKNAH4Tzd08pWYpVlwDx-ehXYbpfvsCqo',
+  'AIzaSyDkoRMEP5tvCnujASCkCsDXLhruyieAds4',
+  'AIzaSyC1V-c8uxlnyDI7ZqUjK5KoJb1wYeZcdg4'
+];
+
 export const YOUTUBE_SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search';
 
 export const DEFAULT_PLAYLIST_ID = 'PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJeg0'; // Fallback playlist (NCS)

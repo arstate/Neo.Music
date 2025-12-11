@@ -45,7 +45,8 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     if (event.data === 2) onPause();
     if (event.data === 0) {
       if (loopMode === LoopMode.ONE) {
-        event.target.seekTo(0);
+        // seekTo(seconds: number, allowSeekAhead: boolean)
+        event.target.seekTo(0, true);
         event.target.playVideo();
       } else {
         onEnd();
