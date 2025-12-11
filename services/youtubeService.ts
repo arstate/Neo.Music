@@ -5,53 +5,63 @@ import { VideoResult } from '../types';
 // Track current key index globally across the session
 let currentKeyIndex = 0;
 
-export const searchVideos = async (query: string, limit = 10, attempt = 0): Promise<VideoResult[]> => {
+export const searchVideos = async (query: string, limit = 10): Promise<VideoResult[]> => {
   if (!query) return [];
 
-  // Stop recursion if we've tried all keys
-  if (attempt >= YOUTUBE_API_KEYS.length) {
-    console.error('All YouTube API Keys exhausted or failed.');
-    return [];
-  }
+  let attempts = 0;
+  const maxAttempts = YOUTUBE_API_KEYS.length;
 
-  try {
-    const currentKey = YOUTUBE_API_KEYS[currentKeyIndex];
+  // Robust Iterative Key Rotation
+  while (attempts < maxAttempts) {
+    const apiKey = YOUTUBE_API_KEYS[currentKeyIndex];
     
-    const url = new URL(YOUTUBE_SEARCH_URL);
-    url.searchParams.append('part', 'snippet');
-    url.searchParams.append('maxResults', limit.toString()); // Use the dynamic limit
-    url.searchParams.append('q', query);
-    url.searchParams.append('type', 'video');
-    url.searchParams.append('key', currentKey);
+    try {
+      const url = new URL(YOUTUBE_SEARCH_URL);
+      url.searchParams.append('part', 'snippet');
+      url.searchParams.append('maxResults', limit.toString());
+      url.searchParams.append('q', query);
+      url.searchParams.append('type', 'video');
+      url.searchParams.append('key', apiKey);
 
-    const response = await fetch(url.toString());
-    
-    // Check for API errors (Quota exceeded is usually 403, Too Many Requests 429)
-    if (!response.ok) {
-        console.warn(`API Key index ${currentKeyIndex} failed with status ${response.status}. Switching key...`);
-        
-        // Rotate to next key
-        currentKeyIndex = (currentKeyIndex + 1) % YOUTUBE_API_KEYS.length;
-        
-        // Retry recursively, passing the limit
-        return searchVideos(query, limit, attempt + 1);
+      const response = await fetch(url.toString());
+      
+      // If the key is invalid, over quota (403), or rate limited (429), this throws
+      if (!response.ok) {
+        throw new Error(`HTTP Status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Validate data structure to prevent crashes downstream
+      // This prevents the "white screen" error when API returns valid JSON but no items (error object)
+      if (!data.items || !Array.isArray(data.items)) {
+         throw new Error('Invalid API response: items array missing');
+      }
+
+      const validResults = data.items
+        .filter((item: any) => item.id && item.id.videoId) // Strict filter: must have videoId
+        .map((item: any) => ({
+          id: item.id.videoId,
+          title: item.snippet?.title || 'Untitled',
+          thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.default?.url || '',
+          channelTitle: item.snippet?.channelTitle || 'Unknown Channel',
+        }));
+
+      // If we got here, it was successful. Return the results.
+      return validResults;
+
+    } catch (error) {
+      console.warn(`API Key ending in ...${apiKey.slice(-4)} failed (Index: ${currentKeyIndex}). Error: ${error}`);
+      
+      // Rotate to the next key immediately
+      currentKeyIndex = (currentKeyIndex + 1) % YOUTUBE_API_KEYS.length;
+      attempts++;
     }
-
-    const data = await response.json();
-
-    return data.items.map((item: any) => ({
-      id: item.id.videoId,
-      title: item.snippet.title,
-      thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
-      channelTitle: item.snippet.channelTitle,
-    }));
-
-  } catch (error) {
-    console.error('Network error fetching YouTube videos:', error);
-    // Even on network error, try switching just in case it's a specific key issue
-    currentKeyIndex = (currentKeyIndex + 1) % YOUTUBE_API_KEYS.length;
-    return searchVideos(query, limit, attempt + 1);
   }
+
+  // If loop finishes, all keys failed
+  console.error('All YouTube API Keys exhausted or failed.');
+  return [];
 };
 
 export const getSearchSuggestions = (query: string): Promise<string[]> => {
