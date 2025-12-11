@@ -1,7 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { VideoResult, VideoQuality, LoopMode } from './types';
 import { searchVideos } from './services/youtubeService';
-import { MOCK_SEARCH_RESULTS } from './constants';
 import PlayerScreen from './components/PlayerScreen';
 import Controls from './components/Controls';
 import SettingsPanel from './components/SettingsPanel';
@@ -10,7 +9,7 @@ import Playlist from './components/Playlist';
 const App: React.FC = () => {
   // State
   const [query, setQuery] = useState('');
-  const [playlist, setPlaylist] = useState<VideoResult[]>(MOCK_SEARCH_RESULTS);
+  const [playlist, setPlaylist] = useState<VideoResult[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerObj, setPlayerObj] = useState<any>(null);
@@ -21,6 +20,22 @@ const App: React.FC = () => {
   const [loopMode, setLoopMode] = useState<LoopMode>(LoopMode.ALL);
 
   const currentVideo = playlist[currentIndex];
+
+  // Initial Search for "dj tiktok"
+  useEffect(() => {
+    const initSearch = async () => {
+      try {
+        const results = await searchVideos("dj tiktok");
+        if (results && results.length > 0) {
+          setPlaylist(results);
+          setCurrentIndex(0);
+        }
+      } catch (e) {
+        console.error("Initial auto-search failed:", e);
+      }
+    };
+    initSearch();
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,8 +163,8 @@ const App: React.FC = () => {
                 ) : (
                   <div className="flex h-48 sm:h-96 w-full items-center justify-center bg-neo-blue text-white">
                     <div className="text-center p-4">
-                       <h2 className="font-display text-2xl sm:text-4xl font-black">NO TAPE</h2>
-                       <p className="mt-2 font-mono text-xs sm:text-base">SEARCH TO PLAY</p>
+                       <h2 className="font-display text-2xl sm:text-4xl font-black">LOADING...</h2>
+                       <p className="mt-2 font-mono text-xs sm:text-base">INITIALIZING TAPE</p>
                     </div>
                   </div>
                 )}
