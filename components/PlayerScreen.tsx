@@ -7,6 +7,7 @@ interface PlayerScreenProps {
   showVideo: boolean;
   videoQuality: VideoQuality;
   loopMode: LoopMode;
+  volume: number; // New Prop
   onEnd: () => void;
   onPlay: () => void;
   onPause: () => void;
@@ -18,6 +19,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
   showVideo,
   videoQuality,
   loopMode,
+  volume,
   onEnd,
   onPlay,
   onPause,
@@ -27,15 +29,23 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
 
   // Handle Quality Updates
   useEffect(() => {
-    if (playerRef.current) {
+    if (playerRef.current && typeof playerRef.current.setPlaybackQuality === 'function') {
       playerRef.current.setPlaybackQuality(videoQuality);
     }
   }, [videoQuality]);
+
+  // Handle Volume Updates
+  useEffect(() => {
+    if (playerRef.current && typeof playerRef.current.setVolume === 'function') {
+      playerRef.current.setVolume(volume);
+    }
+  }, [volume]);
 
   const onPlayerReady: YouTubeProps['onReady'] = (event) => {
     playerRef.current = event.target;
     setPlayerRef(event.target);
     event.target.setPlaybackQuality(videoQuality);
+    event.target.setVolume(volume);
     event.target.playVideo();
   };
 
@@ -66,10 +76,6 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
       playsinline: 1, // Crucial for mobile inline/background playback
     },
   };
-
-  // Logic Change: We don't use Conditional Rendering for the Player Component anymore.
-  // We allow the Player to render ALWAYS, but we hide it visually if showVideo is false.
-  // This ensures background audio works on iOS/Android as the element is still in DOM.
 
   return (
     <div className="relative w-full aspect-video bg-black border-4 border-black overflow-hidden">

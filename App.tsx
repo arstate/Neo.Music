@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { VideoResult, VideoQuality, AudioQuality, LoopMode } from './types';
 import { searchVideos, getSearchSuggestions } from './services/youtubeService';
@@ -18,9 +17,10 @@ const App: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerObj, setPlayerObj] = useState<any>(null);
 
-  // Time State
+  // Time & Volume State
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(100);
 
   // Settings
   const [showVideo, setShowVideo] = useState(true);
@@ -30,12 +30,38 @@ const App: React.FC = () => {
   const [isBackgroundMode, setIsBackgroundMode] = useState(false);
   const [loopMode, setLoopMode] = useState<LoopMode>(LoopMode.ALL);
 
+  // PWA State
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+
   const currentVideo = playlist[currentIndex];
   const timerRef = useRef<number | null>(null);
   const debounceRef = useRef<number | null>(null);
   
-  // Audio Context Ref for iOS Background Hack
+  // Audio Context Ref for Background Hack
   const audioContextRef = useRef<AudioContext | null>(null);
+  const keepAliveIntervalRef = useRef<number | null>(null);
+
+  // Wake Lock Ref
+  const wakeLockRef = useRef<any>(null);
+
+  // Handle PWA Install Prompt
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
 
   // Initial Search for "dj tiktok" - LIMIT TO 3 RESULTS TO SAVE QUOTA
   useEffect(() => {
@@ -80,10 +106,40 @@ const App: React.FC = () => {
     setDuration(0);
   }, [currentIndex]);
 
+  // --- WAKE LOCK API (Prevents screen sleep) ---
+  const requestWakeLock = async () => {
+    if ('wakeLock' in navigator) {
+      try {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      } catch (err) {
+        console.log('Wake Lock Error:', err);
+      }
+    }
+  };
+
+  const releaseWakeLock = async () => {
+    if (wakeLockRef.current) {
+      try {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      } catch (err) {
+        console.log('Wake Lock Release Error:', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isPlaying) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+  }, [isPlaying]);
+
   // --- MEDIA SESSION API INTEGRATION (For Background Play) ---
   useEffect(() => {
     if ('mediaSession' in navigator && currentVideo) {
-      // 1. Set Metadata (Notification Content)
+      // 1. Set Metadata
       navigator.mediaSession.metadata = new MediaMetadata({
         title: currentVideo.title,
         artist: currentVideo.channelTitle,
@@ -96,7 +152,7 @@ const App: React.FC = () => {
         ]
       });
 
-      // 2. Set Action Handlers (Lock Screen Controls)
+      // 2. Set Action Handlers
       navigator.mediaSession.setActionHandler('play', () => {
         playerObj?.playVideo();
         setIsPlaying(true);
@@ -113,7 +169,7 @@ const App: React.FC = () => {
         }
       });
     }
-  }, [currentVideo, playerObj, currentIndex, playlist]); // Re-run when video or player changes
+  }, [currentVideo, playerObj, currentIndex, playlist]); 
 
   // Update Media Session Playback State
   useEffect(() => {
@@ -122,41 +178,67 @@ const App: React.FC = () => {
     }
   }, [isPlaying]);
 
-  // --- iOS BACKGROUND AUDIO HACK ---
-  // This plays a silent sound using Web Audio API. 
-  // This tricks iOS into thinking the app is a dedicated music player, preventing suspension.
-  const initSilentAudio = () => {
-    if (!audioContextRef.current) {
-      // @ts-ignore - Handle webkit prefix for older Safari
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (AudioContext) {
-        const ctx = new AudioContext();
-        audioContextRef.current = ctx;
-      }
-    }
-
-    const ctx = audioContextRef.current;
-    if (ctx) {
-       // Create a silent oscillator
-       const oscillator = ctx.createOscillator();
-       const gainNode = ctx.createGain();
-       
-       // Nearly silent gain (not 0, or browser might optimize it away)
-       gainNode.gain.value = 0.001; 
-       
-       oscillator.connect(gainNode);
-       gainNode.connect(ctx.destination);
-       
-       oscillator.start();
-       // Stop after a tiny fraction of a second, or loop it?
-       // For iOS, just engaging the context is usually enough, 
-       // but running a silent loop is safer for long sessions.
-       // We'll leave the context 'running'.
+  // --- ULTIMATE BACKGROUND AUDIO FIX (Samsung/iOS) ---
+  // A standard oscillator isn't enough for aggressive Android battery savers.
+  // We need a persistent interval that pings the audio hardware repeatedly.
+  
+  const playSilentPing = () => {
+    if (audioContextRef.current && audioContextRef.current.state === 'running') {
+        const osc = audioContextRef.current.createOscillator();
+        const gain = audioContextRef.current.createGain();
+        gain.gain.value = 0.001; // Barely audible
+        osc.connect(gain);
+        gain.connect(audioContextRef.current.destination);
+        osc.start();
+        osc.stop(audioContextRef.current.currentTime + 0.1); // Short ping
     }
   };
 
+  const startKeepAlive = () => {
+    // Stop existing
+    if (keepAliveIntervalRef.current) clearInterval(keepAliveIntervalRef.current);
 
-  // Handle Search Input Change with Debounce for Suggestions
+    // Initialize Context if missing
+    if (!audioContextRef.current) {
+       // @ts-ignore
+       const AudioContext = window.AudioContext || window.webkitAudioContext;
+       if (AudioContext) {
+           audioContextRef.current = new AudioContext();
+       }
+    }
+
+    // Resume context
+    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+    }
+
+    // Start aggressive loop (every 15s)
+    // This tricks Samsung OneUI/iOS into thinking "Music is actively streaming"
+    keepAliveIntervalRef.current = window.setInterval(() => {
+        playSilentPing();
+    }, 15000); 
+    
+    playSilentPing(); // Immediate ping
+  };
+
+  const stopKeepAlive = () => {
+      if (keepAliveIntervalRef.current) {
+          clearInterval(keepAliveIntervalRef.current);
+          keepAliveIntervalRef.current = null;
+      }
+  };
+
+  useEffect(() => {
+      if (isPlaying) {
+          startKeepAlive();
+      } else {
+          stopKeepAlive();
+      }
+      return () => stopKeepAlive();
+  }, [isPlaying]);
+
+
+  // Handle Search Input Change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
@@ -168,7 +250,7 @@ const App: React.FC = () => {
       debounceRef.current = window.setTimeout(async () => {
         const sugs = await getSearchSuggestions(val);
         setSuggestions(sugs);
-      }, 300); // Wait 300ms after typing stops
+      }, 300); 
     } else {
       setSuggestions([]);
     }
@@ -176,8 +258,7 @@ const App: React.FC = () => {
 
   const executeSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
-    setShowSuggestions(false); // Hide suggestions
-    // Manual search gets 10 results
+    setShowSuggestions(false); 
     const results = await searchVideos(searchQuery, 10);
     if (results.length > 0) {
       setPlaylist(results);
@@ -221,7 +302,7 @@ const App: React.FC = () => {
     if (isPlaying) {
       playerObj.pauseVideo();
     } else {
-      // On Resume, also ensure audio context is running (iOS policy)
+      // Must resume AudioContext on user interaction
       if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
         audioContextRef.current.resume();
       }
@@ -239,7 +320,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Seek and Skip handlers
   const handleSeek = (time: number) => {
     if (playerObj) {
       playerObj.seekTo(time);
@@ -255,7 +335,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Data Saver Toggle Logic
   const toggleDataSaver = () => {
     const newState = !isDataSaver;
     setIsDataSaver(newState);
@@ -266,37 +345,31 @@ const App: React.FC = () => {
     }
   };
 
-  // Background Mode Toggle
   const toggleBackgroundMode = () => {
     const newState = !isBackgroundMode;
     setIsBackgroundMode(newState);
     
     if (newState) {
-        // ACTIVATING BACKGROUND MODE
         setShowVideo(false);
-        initSilentAudio(); // FORCE iOS Audio Context
+        startKeepAlive(); // Force audio loop immediately
+        requestWakeLock(); // Force wake lock
         
-        // Attempt to "Minimize" (Best effort for UX)
-        // Note: Browsers generally block window.close() for scripts that didn't open the window.
-        // We simulate this by defocusing.
+        // UX: Defocus to simulate minimize
         try {
           window.blur(); 
         } catch (e) {}
 
     } else {
-        // DEACTIVATING
         if (!isDataSaver) setShowVideo(true);
     }
   };
 
-  // Effective Quality Logic
   const effectiveQuality = (isDataSaver || isBackgroundMode) ? (audioQuality as unknown as VideoQuality) : videoQuality;
 
   return (
-    // Use h-[100dvh] for better mobile browser support
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">
       
-      {/* BACKGROUND MODE OVERLAY (Simulates "Minimized" state visually and instructs user) */}
+      {/* BACKGROUND MODE OVERLAY */}
       {isBackgroundMode && (
           <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-neo-yellow p-6 text-center">
               <div className="max-w-md border-4 border-black bg-white p-6 shadow-neo animate-bounce-slow">
@@ -307,19 +380,16 @@ const App: React.FC = () => {
                   </div>
                   <h1 className="font-display text-2xl font-black uppercase mb-2">Background Mode ON</h1>
                   <p className="font-mono text-sm mb-6 font-bold">
-                      Audio is locked and optimized. <br/>
-                      You can now Swipe Home or lock your screen.
+                      Audio locked (Anti-Sleep Active). <br/>
+                      Safe to lock screen or switch apps.
                   </p>
                   
                   <div className="flex flex-col gap-2">
                     <button 
-                        onClick={() => {
-                            // Try to simulate a "home" action by focusing out (rarely works but good for intent)
-                            window.open('', '_self');
-                        }}
+                        onClick={() => window.open('', '_self')}
                         className="border-2 border-black bg-gray-200 p-2 text-xs text-gray-500 font-bold uppercase cursor-not-allowed"
                     >
-                        (Swipe Up to Minimize)
+                        (Swipe Up / Home to Minimize)
                     </button>
                     <button 
                         onClick={toggleBackgroundMode}
@@ -340,14 +410,12 @@ const App: React.FC = () => {
         
         {/* SIDEBAR (Library/Queue) - Hidden on Mobile */}
         <aside className="hidden w-80 flex-col border-r-4 border-black bg-white md:flex">
-          {/* Logo */}
           <div className="border-b-4 border-black bg-neo-yellow p-6">
             <h1 className="font-display text-2xl font-black uppercase tracking-tighter">
               NEO<span className="text-neo-pink">.</span>MUSIC
             </h1>
           </div>
           
-          {/* Playlist Component fills the rest */}
           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
              <Playlist 
                 videos={playlist} 
@@ -363,7 +431,6 @@ const App: React.FC = () => {
           {/* Top Bar: Search */}
           <div className="sticky top-0 z-20 w-full border-b-4 border-black bg-white p-2 sm:p-4">
             <div className="flex items-center gap-2">
-                {/* Mobile Logo (Visible only on small screens) */}
                 <div className="md:hidden flex items-center pr-2 font-display font-black text-lg">N.M</div>
 
                 <div className="relative flex-1 min-w-0">
@@ -373,7 +440,6 @@ const App: React.FC = () => {
                             value={query}
                             onChange={handleInputChange}
                             onFocus={() => setShowSuggestions(true)}
-                            // Delayed blur to allow click on suggestion to register
                             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                             placeholder="SEARCH..."
                             className="w-full flex-1 border-2 sm:border-4 border-black bg-white p-2 font-bold uppercase outline-none placeholder:text-gray-400 focus:bg-neo-yellow focus:placeholder:text-black text-sm sm:text-base"
@@ -392,14 +458,14 @@ const App: React.FC = () => {
                         </button>
                     </form>
 
-                    {/* Suggestions Dropdown */}
+                    {/* Suggestions */}
                     {showSuggestions && suggestions.length > 0 && (
                         <div className="absolute top-full left-0 mt-1 w-full border-4 border-black bg-white shadow-neo z-50">
                             {suggestions.map((suggestion, index) => (
                                 <div
                                     key={index}
                                     className="cursor-pointer border-b-2 border-gray-100 p-2 text-sm font-bold uppercase hover:bg-neo-pink hover:text-white last:border-0"
-                                    onMouseDown={() => handleSuggestionClick(suggestion)} // onMouseDown fires before onBlur
+                                    onMouseDown={() => handleSuggestionClick(suggestion)}
                                 >
                                     {suggestion}
                                 </div>
@@ -413,7 +479,7 @@ const App: React.FC = () => {
           {/* Content Area */}
           <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 custom-scrollbar">
             <div className="mx-auto max-w-4xl">
-              {/* Video Player Container */}
+              {/* Video Player */}
               <div className="mb-4 sm:mb-6 w-full border-4 border-black bg-black shadow-neo">
                 {currentVideo ? (
                     <PlayerScreen 
@@ -421,6 +487,7 @@ const App: React.FC = () => {
                       showVideo={showVideo}
                       videoQuality={effectiveQuality}
                       loopMode={loopMode}
+                      volume={volume}
                       onEnd={handleVideoEnd}
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => setIsPlaying(false)}
@@ -436,7 +503,7 @@ const App: React.FC = () => {
                 )}
               </div>
               
-              {/* Mobile View Playlist (Only shows on mobile) */}
+              {/* Mobile View Playlist */}
               <div className="md:hidden pb-4">
                  <Playlist 
                     videos={playlist} 
@@ -450,11 +517,11 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      {/* FOOTER (Controls & Settings) */}
+      {/* FOOTER */}
       <footer className="z-50 flex-none border-t-4 border-black bg-white p-2 shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)]">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           
-          {/* Top Row on Mobile: Song Info */}
+          {/* Song Info */}
           <div className="w-full sm:mb-2 sm:w-1/4">
              <div className="overflow-hidden border-2 border-black bg-neo-yellow p-1 sm:p-2">
                 <div className="whitespace-nowrap font-mono text-xs sm:text-sm font-bold text-black animate-marquee">
@@ -463,7 +530,7 @@ const App: React.FC = () => {
               </div>
           </div>
 
-          {/* Center: Controls (Now includes slider) */}
+          {/* Controls */}
           <div className="flex-1 w-full sm:w-2/4">
               <Controls 
                   isPlaying={isPlaying} 
@@ -477,7 +544,7 @@ const App: React.FC = () => {
                 />
           </div>
 
-          {/* Right: Settings */}
+          {/* Settings */}
           <div className="flex w-full justify-center sm:w-1/4 sm:justify-end sm:mb-2">
              <SettingsPanel 
                showVideo={showVideo} 
@@ -492,6 +559,10 @@ const App: React.FC = () => {
                setLoopMode={setLoopMode}
                isBackgroundMode={isBackgroundMode}
                toggleBackgroundMode={toggleBackgroundMode}
+               volume={volume}
+               setVolume={setVolume}
+               installPrompt={installPrompt}
+               handleInstallClick={handleInstallClick}
              />
           </div>
 

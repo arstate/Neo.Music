@@ -14,6 +14,10 @@ interface SettingsPanelProps {
   setLoopMode: (m: LoopMode) => void;
   isBackgroundMode: boolean;
   toggleBackgroundMode: () => void;
+  volume: number;
+  setVolume: (v: number) => void;
+  installPrompt: any; // The PWA install prompt event
+  handleInstallClick: () => void;
 }
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -29,10 +33,38 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   setLoopMode,
   isBackgroundMode,
   toggleBackgroundMode,
+  volume,
+  setVolume,
+  installPrompt,
+  handleInstallClick
 }) => {
   return (
     <div className="flex flex-nowrap items-center gap-1 sm:gap-2">
+
+      {/* PWA Install Button (Only visible if prompt exists) */}
+      {installPrompt && (
+        <button
+          onClick={handleInstallClick}
+          className="flex h-8 w-auto items-center justify-center border-2 border-black bg-neo-yellow px-2 text-[10px] sm:text-xs font-bold shadow-neo-xs hover:translate-y-0.5 hover:shadow-none transition-all mr-2"
+          title="Install App"
+        >
+          INSTALL APP
+        </button>
+      )}
       
+      {/* Volume Control */}
+      <div className="hidden sm:flex items-center gap-1 border-2 border-black bg-white px-2 h-8 mr-1">
+        <span className="text-[10px] font-bold">VOL</span>
+        <input 
+          type="range" 
+          min="0" 
+          max="100" 
+          value={volume} 
+          onChange={(e) => setVolume(Number(e.target.value))}
+          className="w-16 h-1 appearance-none bg-gray-300 accent-black cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:bg-black"
+        />
+      </div>
+
       {/* Background / Minimize Button */}
       <button
         onClick={toggleBackgroundMode}
