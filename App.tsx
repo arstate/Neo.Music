@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { VideoResult, VideoQuality, LoopMode } from './types';
 import { searchVideos } from './services/youtubeService';
 import PlayerScreen from './components/PlayerScreen';
@@ -14,12 +14,17 @@ const App: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerObj, setPlayerObj] = useState<any>(null);
 
+  // Time State
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
   // Settings
   const [showVideo, setShowVideo] = useState(true);
   const [videoQuality, setVideoQuality] = useState<VideoQuality>(VideoQuality.MEDIUM);
   const [loopMode, setLoopMode] = useState<LoopMode>(LoopMode.ALL);
 
   const currentVideo = playlist[currentIndex];
+  const timerRef = useRef<number | null>(null);
 
   // Initial Search for "dj tiktok"
   useEffect(() => {
@@ -36,6 +41,33 @@ const App: React.FC = () => {
     };
     initSearch();
   }, []);
+
+  // Timer loop for progress bar
+  useEffect(() => {
+    if (isPlaying && playerObj) {
+      timerRef.current = window.setInterval(() => {
+        const time = playerObj.getCurrentTime();
+        const dur = playerObj.getDuration();
+        setCurrentTime(time);
+        if (dur && dur > 0 && dur !== duration) {
+          setDuration(dur);
+        }
+      }, 500); // Update every 500ms
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isPlaying, playerObj, duration]);
+
+  // Reset time when video changes
+  useEffect(() => {
+    setCurrentTime(0);
+    setDuration(0);
+  }, [currentIndex]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +117,22 @@ const App: React.FC = () => {
       setCurrentIndex(index % newPlaylist.length);
     } else if (newPlaylist.length === 0) {
       setIsPlaying(false);
+    }
+  };
+
+  // Seek and Skip handlers
+  const handleSeek = (time: number) => {
+    if (playerObj) {
+      playerObj.seekTo(time);
+      setCurrentTime(time);
+    }
+  };
+
+  const handleSkip = (seconds: number) => {
+    if (playerObj) {
+      const newTime = currentTime + seconds;
+      playerObj.seekTo(newTime);
+      setCurrentTime(newTime);
     }
   };
 
@@ -186,10 +234,10 @@ const App: React.FC = () => {
 
       {/* FOOTER (Controls & Settings) */}
       <footer className="z-50 flex-none border-t-4 border-black bg-white p-2 shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)]">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           
           {/* Top Row on Mobile: Song Info */}
-          <div className="w-full sm:w-1/3">
+          <div className="w-full sm:mb-2 sm:w-1/4">
              <div className="overflow-hidden border-2 border-black bg-neo-yellow p-1 sm:p-2">
                 <div className="whitespace-nowrap font-mono text-xs sm:text-sm font-bold text-black animate-marquee">
                   {currentVideo ? `${currentVideo.title} /// ${currentVideo.channelTitle}` : "WAITING FOR INPUT..."}
@@ -197,29 +245,30 @@ const App: React.FC = () => {
               </div>
           </div>
 
-          {/* Bottom Row on Mobile: Controls + Settings combined */}
-          <div className="flex items-center justify-between gap-2 sm:contents">
-             {/* Center: Controls */}
-             <div className="flex flex-1 justify-center sm:w-1/3">
-                <Controls 
-                    isPlaying={isPlaying} 
-                    onPlayPause={togglePlayPause} 
-                    onNext={playNext} 
-                    onPrev={playPrev}
-                  />
-             </div>
-
-             {/* Right: Settings */}
-             <div className="flex flex-none sm:w-1/3 sm:justify-end">
-                <SettingsPanel 
-                  showVideo={showVideo} 
-                  setShowVideo={setShowVideo}
-                  videoQuality={videoQuality}
-                  setVideoQuality={setVideoQuality}
-                  loopMode={loopMode}
-                  setLoopMode={setLoopMode}
+          {/* Center: Controls (Now includes slider) */}
+          <div className="flex-1 w-full sm:w-2/4">
+              <Controls 
+                  isPlaying={isPlaying} 
+                  onPlayPause={togglePlayPause} 
+                  onNext={playNext} 
+                  onPrev={playPrev}
+                  currentTime={currentTime}
+                  duration={duration}
+                  onSeek={handleSeek}
+                  onSkip={handleSkip}
                 />
-             </div>
+          </div>
+
+          {/* Right: Settings */}
+          <div className="flex w-full justify-center sm:w-1/4 sm:justify-end sm:mb-2">
+             <SettingsPanel 
+               showVideo={showVideo} 
+               setShowVideo={setShowVideo}
+               videoQuality={videoQuality}
+               setVideoQuality={setVideoQuality}
+               loopMode={loopMode}
+               setLoopMode={setLoopMode}
+             />
           </div>
 
         </div>
