@@ -1,0 +1,5 @@
+{
+  "name": "Zombio Tapes - Neo Brutalist Player",
+  "description": "A high-contrast, neo-brutalist music player powered by YouTube API with adjustable video quality, preview toggles, and looping capabilities.",
+  "requestFramePermissions": []
+}

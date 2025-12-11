@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zombio Tapes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend+Mega:wght@100..900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['"Lexend Mega"', 'sans-serif'],
+              mono: ['"Space Mono"', 'monospace'],
+            },
+            colors: {
+              neo: {
+                yellow: '#FBbf24',
+                pink: '#db2777',
+                blue: '#2563eb',
+                green: '#a3e635',
+                white: '#ffffff',
+                black: '#000000'
+              }
+            },
+            boxShadow: {
+              'neo': '8px 8px 0px 0px rgba(0,0,0,1)',
+              'neo-sm': '4px 4px 0px 0px rgba(0,0,0,1)',
+              'neo-hover': '0px 0px 0px 0px rgba(0,0,0,1)',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #e5e7eb;
+        background-image: radial-gradient(#000 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 12px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #000;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #a3e635;
+        border: 2px solid #000;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.1/",
+    "react/": "https://esm.sh/react@^19.2.1/",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite": "https://esm.sh/vite@^7.2.7",
+    "react-youtube": "https://esm.sh/react-youtube@^10.1.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
