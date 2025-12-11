@@ -521,7 +521,8 @@ const App: React.FC = () => {
         {/* MAIN CONTENT */}
         <main className="flex flex-1 flex-col bg-[#e5e7eb] relative min-w-0">
           {/* Top Bar: Search */}
-          <div className="sticky top-0 z-20 w-full border-b-4 border-black bg-white p-2 sm:p-4">
+          {/* FIXED: Changed z-20 to z-40 to be higher than Player content */}
+          <div className="sticky top-0 z-40 w-full border-b-4 border-black bg-white p-2 sm:p-4">
             <div className="flex items-center gap-2">
                 <div className="md:hidden flex items-center pr-2 font-display font-black text-lg">N.M</div>
 

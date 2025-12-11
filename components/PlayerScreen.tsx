@@ -81,8 +81,9 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     <div className="relative w-full aspect-video bg-black border-4 border-black overflow-hidden">
       
       {/* 1. Placeholder Layer (Visible when showVideo is FALSE) */}
+      {/* FIXED: Changed z-20 to z-10 to allow search dropdown (z-50) to appear on top */}
       <div 
-        className={`absolute inset-0 z-20 flex items-center justify-center bg-neo-yellow transition-opacity duration-300 ${showVideo ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        className={`absolute inset-0 z-10 flex items-center justify-center bg-neo-yellow transition-opacity duration-300 ${showVideo ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       >
           <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-black to-transparent"></div>
           <div className="z-10 text-center p-4">
