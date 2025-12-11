@@ -97,24 +97,36 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     }
   };
 
+  const handleExitFullscreen = () => {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if ((document as any).webkitExitFullscreen) {
+      (document as any).webkitExitFullscreen();
+    } else if ((document as any).msExitFullscreen) {
+      (document as any).msExitFullscreen();
+    }
+  };
+
   const opts: YouTubeProps['opts'] = {
     height: '100%',
     width: '100%',
     playerVars: {
       autoplay: 1,
-      controls: 0, // Custom controls
+      // ENABLE CONTROLS: This is crucial to get the gear icon, quality settings, 
+      // subtitles, speed, etc. inside the fullscreen view.
+      controls: 1, 
       modestbranding: 1,
       rel: 0,
       iv_load_policy: 3, // Hide annotations
       playsinline: 1,
-      fs: 0, // Hide YouTube's native fullscreen button since we use ours
+      fs: 1, // Allow native fullscreen button too
     },
   };
 
   return (
     <div 
       ref={containerRef}
-      className="relative w-full aspect-video bg-black border-4 border-black overflow-hidden"
+      className="relative w-full aspect-video bg-black border-4 border-black overflow-hidden group"
     >
       
       {/* 1. Placeholder Layer (Visible when showVideo is FALSE) */}
@@ -142,15 +154,31 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
         />
         
         {/* INTERACTION BLOCKER: 
-            Prevents hover states on iframe (hides Watermark/Title).
-            HIDDEN when in fullscreen so user can access YouTube settings. 
+            In NORMAL mode (not fullscreen), this invisible layer covers the video.
+            This prevents clicking the 'Native' controls (which are now enabled),
+            forcing the user to use our custom Neo-Brutalist controls.
+            
+            In FULLSCREEN mode, this is HIDDEN, allowing full access to YouTube's native UI.
         */}
         {showVideo && !isFullscreen && (
            <div className="absolute inset-0 z-30 bg-transparent w-full h-full"></div>
         )}
-
-        {/* CRT Noise texture removed as requested */}
       </div>
+
+      {/* 3. CUSTOM EXIT FULLSCREEN BUTTON
+          Visible only when in fullscreen mode.
+      */}
+      {isFullscreen && (
+        <button
+          onClick={handleExitFullscreen}
+          className="absolute top-4 right-4 z-50 flex items-center gap-2 border-4 border-black bg-white px-4 py-2 font-display font-black uppercase text-black shadow-neo hover:bg-red-500 hover:text-white transition-all hover:scale-105 active:scale-95"
+        >
+          <span>EXIT</span>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={4} stroke="currentColor" className="w-5 h-5">
+            <path strokeLinecap="square" strokeLinejoin="miter" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
 
     </div>
   );
