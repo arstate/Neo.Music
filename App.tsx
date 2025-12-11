@@ -577,7 +577,7 @@ const App: React.FC = () => {
 
       {/* MODALS */}
       {modalMode !== 'NONE' && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[100] flex items-start pt-20 sm:pt-0 sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
            
            {/* CREATE / EDIT PLAYLIST MODAL */}
            {(modalMode === 'CREATE_PLAYLIST' || modalMode === 'EDIT_PLAYLIST') && (
@@ -613,7 +613,7 @@ const App: React.FC = () => {
                  <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 mb-4">
                     <button 
                       onClick={() => {
-                        setPlaylistFormName(selectedVideoForAdd.channelTitle + " Mix");
+                        setPlaylistFormName(''); // Clear name so user can type custom name
                         setModalMode('CREATE_PLAYLIST');
                       }}
                       className="flex items-center gap-2 border-2 border-black border-dashed p-3 hover:bg-neo-yellow font-bold text-sm"
