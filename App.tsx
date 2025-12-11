@@ -304,12 +304,19 @@ const App: React.FC = () => {
 
   const executeSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
-    setShowSuggestions(false); 
-    const results = await searchVideos(searchQuery, 10);
-    if (results.length > 0) {
-      setPlaylist(results);
-      setCurrentIndex(0);
-      setIsPlaying(true); // Auto Play on search
+    setShowSuggestions(false);
+    
+    // CRITICAL FIX: Wrapped in try-catch to prevent white-screen crashes on API errors
+    try {
+      const results = await searchVideos(searchQuery, 10);
+      if (results && results.length > 0) {
+        setPlaylist(results);
+        setCurrentIndex(0);
+        setIsPlaying(true); // Auto Play on search
+      }
+    } catch (error) {
+      console.error("Search failed:", error);
+      // Optional: Add a toast notification here if desired
     }
   };
 

@@ -58,6 +58,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     };
   }, [isVolumeOpen]);
 
+  const isPreviewOff = isDataSaver || isBackgroundMode || !showVideo;
+
   return (
     <div className="flex flex-nowrap items-center gap-1 sm:gap-2">
 
@@ -72,7 +74,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         </button>
       )}
       
-      {/* Volume Control (Icon -> Slider Toggle) */}
+      {/* Volume Control (Always Visible) */}
       <div ref={volumeRef} className="relative flex items-center mr-1">
         {!isVolumeOpen ? (
           <button
@@ -158,14 +160,22 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         {loopMode === LoopMode.ONE ? '1' : '∞'}
       </button>
 
-      {/* Quality (Changes based on Data Saver or BG mode) */}
-      {isDataSaver || isBackgroundMode ? (
-        /* Audio Quality Dropdown (Simplified) */
-        <div className="h-8 flex items-center justify-center border-2 border-black bg-green-100 px-2 text-[10px] font-bold text-green-800">
-           ECO/10p
-        </div>
+      {/* Quality Selection */}
+      {/* Logic: If Preview is OFF, hide Video Quality Select (forced 10p), but Show Audio Preference */}
+      {isPreviewOff ? (
+         /* Audio Preference Dropdown (Visual Only, as 10p forces low data, but requested to show) */
+         <select
+            value={audioQuality}
+            onChange={(e) => setAudioQuality(e.target.value as AudioQuality)}
+            className="h-8 w-14 sm:w-auto border-2 border-black bg-gray-100 px-0 sm:px-1 text-[10px] sm:text-xs font-bold focus:outline-none text-gray-700"
+            title="Audio Quality Preference"
+         >
+           <option value={AudioQuality.LOW}>Low (Audio)</option>
+           <option value={AudioQuality.MID}>Mid (Audio)</option>
+           <option value={AudioQuality.HIGH}>High (Audio)</option>
+         </select>
       ) : (
-        /* Video Quality Dropdown */
+        /* Video Quality Dropdown (Visible when Video is showing) */
         <select
           value={videoQuality}
           onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}
