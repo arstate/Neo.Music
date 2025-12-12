@@ -30,7 +30,12 @@ export const searchVideos = async (query: string, limit = 10): Promise<VideoResu
         throw new Error(`HTTP Status ${response.status}`);
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        throw new Error('Failed to parse JSON response');
+      }
 
       // Validate data structure to prevent crashes downstream
       // This prevents the "white screen" error when API returns valid JSON but no items (error object)
@@ -39,6 +44,7 @@ export const searchVideos = async (query: string, limit = 10): Promise<VideoResu
          if (data && data.error) {
              throw new Error(`API Error: ${data.error.message}`);
          }
+         // If it's a 200 OK but weird structure, just rotate to be safe
          throw new Error('Invalid API response: items array missing');
       }
 

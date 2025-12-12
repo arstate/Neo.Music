@@ -160,7 +160,8 @@ const App: React.FC = () => {
            // -1 (unstarted), 2 (paused), 5 (cued). 
            // If we are "isPlaying" (user wants to play) but player is effectively stopped
            if (state === 2 || state === 5 || state === -1) {
-              console.log(`Background Watchdog: State is ${state}, Forcing Playback`);
+              // console.log(`Background Watchdog: State is ${state}, Forcing Playback`);
+              // Reduced logging to prevent console spam
               playerObj.playVideo();
            }
         }
@@ -272,26 +273,19 @@ const App: React.FC = () => {
 
   // --- Logic Helpers ---
 
-  // CRITICAL FIX: Directly call playerObj.loadVideoById with Object syntax for better background handling
+  // CRITICAL FIX: Removed manual loadVideoById calls.
+  // We now rely purely on React State (currentIndex) -> PlayerScreen (videoId prop) -> react-youtube
+  // This prevents race conditions where the app and the component both try to load the video.
   const playNext = useCallback(() => {
     const pList = playlistRef.current; 
     const cIndex = currentIndexRef.current;
     if (pList.length === 0) return;
     
     const nextIndex = (cIndex + 1) % pList.length;
-    const nextVideo = pList[nextIndex];
 
     setCurrentIndex(nextIndex);
-    setIsPlaying(true); // Ensures auto-play intent for next track
-
-    if (playerObj && typeof playerObj.loadVideoById === 'function') {
-       // Using Object syntax allows passing startSeconds and forcing load
-       playerObj.loadVideoById({
-         videoId: nextVideo.id,
-         startSeconds: 0
-       });
-    }
-  }, [playerObj]);
+    setIsPlaying(true); 
+  }, []);
 
   const playPrev = useCallback(() => {
     const pList = playlistRef.current;
@@ -299,18 +293,10 @@ const App: React.FC = () => {
     if (pList.length === 0) return;
     
     const prevIndex = (cIndex - 1 + pList.length) % pList.length;
-    const prevVideo = pList[prevIndex];
 
     setCurrentIndex(prevIndex);
     setIsPlaying(true);
-
-    if (playerObj && typeof playerObj.loadVideoById === 'function') {
-       playerObj.loadVideoById({
-         videoId: prevVideo.id,
-         startSeconds: 0
-       });
-    }
-  }, [playerObj]);
+  }, []);
 
   // --- MEDIA SESSION API INTEGRATION ---
   useEffect(() => {
@@ -527,6 +513,9 @@ const App: React.FC = () => {
         setPlaylist(results);
         setCurrentIndex(0);
         setIsPlaying(true); 
+      } else {
+        // Optional: Alert user if no results found
+        console.log("No results found or API failure handled gracefully.");
       }
     } catch (error) {
       console.error("Search failed:", error);
