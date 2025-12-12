@@ -151,9 +151,6 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
               <div className="inline-block border-4 border-black bg-white px-4 py-2 font-display font-black text-xl sm:text-2xl uppercase tracking-tighter shadow-neo">
                 AUDIO MODE
               </div>
-              <div className="mt-2 font-mono text-xs sm:text-sm font-bold text-white bg-black px-2 inline-block">
-                {videoQuality === VideoQuality.ZERO || videoQuality === VideoQuality.TINY ? "10p ECO" : "PLAYING"}
-              </div>
           </div>
       </div>
 
