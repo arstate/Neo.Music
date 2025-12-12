@@ -315,47 +315,62 @@ const App: React.FC = () => {
   // --- MEDIA SESSION API INTEGRATION ---
   useEffect(() => {
     if ('mediaSession' in navigator) {
-      const handleNextTrack = () => { playNext(); };
-      const handlePrevTrack = () => { playPrev(); };
-      const handlePlay = () => setIsPlaying(true);
-      const handlePause = () => setIsPlaying(false);
-      const handleStop = () => setIsPlaying(false);
+      try {
+        const handleNextTrack = () => { playNext(); };
+        const handlePrevTrack = () => { playPrev(); };
+        const handlePlay = () => setIsPlaying(true);
+        const handlePause = () => setIsPlaying(false);
+        const handleStop = () => setIsPlaying(false);
 
-      navigator.mediaSession.setActionHandler('play', handlePlay);
-      navigator.mediaSession.setActionHandler('pause', handlePause);
-      navigator.mediaSession.setActionHandler('stop', handleStop);
-      navigator.mediaSession.setActionHandler('previoustrack', handlePrevTrack);
-      navigator.mediaSession.setActionHandler('nexttrack', handleNextTrack);
+        navigator.mediaSession.setActionHandler('play', handlePlay);
+        navigator.mediaSession.setActionHandler('pause', handlePause);
+        navigator.mediaSession.setActionHandler('stop', handleStop);
+        navigator.mediaSession.setActionHandler('previoustrack', handlePrevTrack);
+        navigator.mediaSession.setActionHandler('nexttrack', handleNextTrack);
+      } catch (e) {
+        console.warn('MediaSession actions failed to register:', e);
+      }
     }
   }, [playNext, playPrev]); 
 
   useEffect(() => {
     if ('mediaSession' in navigator) {
-        navigator.mediaSession.setActionHandler('seekto', (details) => {
-            if (details.seekTime && playerObj) {
-                playerObj.seekTo(details.seekTime);
-                setCurrentTime(details.seekTime);
-            }
-        });
+        try {
+          navigator.mediaSession.setActionHandler('seekto', (details) => {
+              if (details.seekTime && playerObj) {
+                  playerObj.seekTo(details.seekTime);
+                  setCurrentTime(details.seekTime);
+              }
+          });
+        } catch (e) {
+          // Ignore
+        }
     }
   }, [playerObj]);
 
   useEffect(() => {
-    if ('mediaSession' in navigator && currentVideo) {
-      // Defensive coding to filter out empty images
-      const validArtwork = [
-        { src: currentVideo.thumbnail || '', sizes: '96x96', type: 'image/jpg' },
-        { src: currentVideo.thumbnail || '', sizes: '128x128', type: 'image/jpg' },
-        { src: currentVideo.thumbnail || '', sizes: '192x192', type: 'image/jpg' },
-        { src: currentVideo.thumbnail || '', sizes: '512x512', type: 'image/jpg' },
-      ].filter(img => typeof img.src === 'string' && img.src.trim() !== '');
+    // Safe guard: MediaMetadata might not be available on all browsers even if mediaSession is
+    if ('mediaSession' in navigator && window.MediaMetadata && currentVideo) {
+      try {
+        // Defensive coding to filter out empty images
+        const validArtwork = [
+          { src: currentVideo.thumbnail || '', sizes: '96x96', type: 'image/jpg' },
+          { src: currentVideo.thumbnail || '', sizes: '128x128', type: 'image/jpg' },
+          { src: currentVideo.thumbnail || '', sizes: '192x192', type: 'image/jpg' },
+          { src: currentVideo.thumbnail || '', sizes: '512x512', type: 'image/jpg' },
+        ].filter(img => typeof img.src === 'string' && img.src.trim() !== '');
 
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentVideo.title,
-        artist: currentVideo.channelTitle,
-        album: 'NEO MUSIC',
-        artwork: validArtwork
-      });
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: currentVideo.title || 'Unknown Title',
+          artist: currentVideo.channelTitle || 'Unknown Artist',
+          album: 'NEO MUSIC',
+          artwork: validArtwork
+        });
+      } catch (e) {
+        // This catch block prevents the entire app from crashing (White Screen)
+        // if the browser rejects the metadata format or if MediaMetadata fails.
+        console.warn('MediaSession metadata update failed:', e);
+      }
     }
   }, [currentVideo]);
 
@@ -627,7 +642,7 @@ const App: React.FC = () => {
     : videoQuality;
 
   return (
-    <div className="flex h-[100dvh] w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">
+    <div className="flex h-screen h-[100dvh] w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">
       
       {/* GHOST PLAYER */}
       <audio 

@@ -85,19 +85,28 @@ export const getSearchSuggestions = (query: string): Promise<string[]> => {
     script.src = `https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q=${encodeURIComponent(query)}&callback=${callbackName}`;
 
     (window as any)[callbackName] = (data: any) => {
+        // CLEANUP
         delete (window as any)[callbackName];
         if (script.parentNode) {
             script.parentNode.removeChild(script);
         }
-        // data[1] contains the suggestions array: [ ["suggestion1", ...], ... ]
-        // or sometimes simply ["suggestion", ...] depending on the client param.
-        // With client=youtube, it usually returns [query, [sug1, sug2, ...], ...]
-        if (data && data[1]) {
-             const results = data[1].map((item: any) => {
-                 return Array.isArray(item) ? item[0] : item;
-             });
-             resolve(results);
-        } else {
+
+        // SAFETY: Wrap in try-catch because if Google returns unexpected JSON structure,
+        // mapping access could throw and bubble up as "Script error" on mobile.
+        try {
+            // data[1] contains the suggestions array: [ ["suggestion1", ...], ... ]
+            // or sometimes simply ["suggestion", ...] depending on the client param.
+            // With client=youtube, it usually returns [query, [sug1, sug2, ...], ...]
+            if (data && data[1]) {
+                 const results = data[1].map((item: any) => {
+                     return Array.isArray(item) ? item[0] : item;
+                 });
+                 resolve(results);
+            } else {
+                resolve([]);
+            }
+        } catch (e) {
+            console.warn("JSONP parse error", e);
             resolve([]);
         }
     };
