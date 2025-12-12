@@ -254,39 +254,56 @@ const App: React.FC = () => {
 
   // --- Logic Helpers ---
 
+  // CRITICAL FIX: Directly call playerObj.loadVideoById.
+  // This bypasses browser restrictions where React state updates (re-rendering the Player component)
+  // are throttled in background tabs. Direct JS API calls to the player instance usually succeed
+  // in the execution slice granted by the 'onEnd' event.
   const playNext = useCallback(() => {
     const pList = playlistRef.current; 
+    const cIndex = currentIndexRef.current;
     if (pList.length === 0) return;
-    setCurrentIndex(prev => (prev + 1) % pList.length);
+    
+    const nextIndex = (cIndex + 1) % pList.length;
+    const nextVideo = pList[nextIndex];
+
+    if (playerObj && typeof playerObj.loadVideoById === 'function') {
+       playerObj.loadVideoById(nextVideo.id);
+    }
+
+    setCurrentIndex(nextIndex);
     setIsPlaying(true);
-  }, []);
+  }, [playerObj]);
 
   const playPrev = useCallback(() => {
     const pList = playlistRef.current;
+    const cIndex = currentIndexRef.current;
     if (pList.length === 0) return;
-    setCurrentIndex(prev => (prev - 1 + pList.length) % pList.length);
+    
+    const prevIndex = (cIndex - 1 + pList.length) % pList.length;
+    const prevVideo = pList[prevIndex];
+
+    if (playerObj && typeof playerObj.loadVideoById === 'function') {
+      playerObj.loadVideoById(prevVideo.id);
+    }
+
+    setCurrentIndex(prevIndex);
     setIsPlaying(true);
-  }, []);
+  }, [playerObj]);
 
   // --- MEDIA SESSION API INTEGRATION ---
   useEffect(() => {
     if ('mediaSession' in navigator) {
+      // Use the stable playNext/playPrev refs/logic inside media session
+      // We need to wrap them to ensure they use the latest state if accessed via closure,
+      // but relying on the refs inside playNext (if we used them) or just calling the latest function is safer.
+      // Since playNext is now dependent on playerObj, we need to update the action handlers when playNext changes.
+      
       const handleNextTrack = () => {
-        const pList = playlistRef.current;
-        const cIndex = currentIndexRef.current;
-        if (pList.length === 0) return;
-        const nextIndex = (cIndex + 1) % pList.length;
-        setCurrentIndex(nextIndex);
-        setIsPlaying(true);
+         playNext();
       };
 
       const handlePrevTrack = () => {
-        const pList = playlistRef.current;
-        const cIndex = currentIndexRef.current;
-        if (pList.length === 0) return;
-        const prevIndex = (cIndex - 1 + pList.length) % pList.length;
-        setCurrentIndex(prevIndex);
-        setIsPlaying(true);
+         playPrev();
       };
 
       const handlePlay = () => setIsPlaying(true);
@@ -299,7 +316,7 @@ const App: React.FC = () => {
       navigator.mediaSession.setActionHandler('previoustrack', handlePrevTrack);
       navigator.mediaSession.setActionHandler('nexttrack', handleNextTrack);
     }
-  }, []);
+  }, [playNext, playPrev]); // Update handlers when these change
 
   useEffect(() => {
     if ('mediaSession' in navigator) {
