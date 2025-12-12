@@ -5,7 +5,7 @@ import { VideoQuality, LoopMode } from '../types';
 
 interface PlayerScreenProps {
   videoId: string;
-  thumbnail?: string; // Added thumbnail prop
+  thumbnail?: string;
   showVideo: boolean;
   videoQuality: VideoQuality;
   loopMode: LoopMode;
@@ -14,7 +14,7 @@ interface PlayerScreenProps {
   onPlay: () => void;
   onPause: () => void;
   setPlayerRef: (player: any) => void;
-  containerRef: React.RefObject<HTMLDivElement>; // Added ref for fullscreen
+  containerRef: React.RefObject<HTMLDivElement>;
 }
 
 const PlayerScreen: React.FC<PlayerScreenProps> = ({
@@ -33,12 +33,14 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
   const playerRef = useRef<any>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
-  // Ref to track if we just changed videos to prevent pause loops
+  // Ref to track video changes
   const isChangingVideo = useRef(false);
+  
+  // NEW: Startup Guard. Prevents browser auto-pause from killing the app state immediately.
+  const isStartingUp = useRef(true);
 
-  // Helper to resolve custom qualities (ZERO/10p) to API supported ones
   const getApiQuality = (q: VideoQuality) => {
-    if (q === VideoQuality.ZERO) return 'tiny'; // Map 10p to 144p (tiny)
+    if (q === VideoQuality.ZERO) return 'tiny';
     return q;
   };
 
@@ -49,63 +51,53 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     }
   };
 
-  // Handle Fullscreen Change Listener
+  // Fullscreen Listener
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
-
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // --- AGGRESSIVE AUTOPLAY FIX FOR BACKGROUND/MINIMIZED ---
-  // When videoId changes, we set a flag and force play repeatedly 
-  // to overcome browser throttling in background tabs.
+  // --- FORCE PLAY LOGIC ---
   useEffect(() => {
     isChangingVideo.current = true;
     
-    const timeouts: NodeJS.Timeout[] = [];
-    
-    // Function to force play safely
+    // Reset startup guard on new video
+    isStartingUp.current = true;
+    setTimeout(() => { isStartingUp.current = false; }, 4000); // 4 seconds immunity
+
     const forcePlay = () => {
       if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
-        console.log("Force Play: Triggering for new video");
         playerRef.current.playVideo();
       }
     };
 
-    // Attempt 1: Immediate
+    // Retry sequence to break browser throttling
     forcePlay();
-
-    // Attempt 2: 500ms (standard lag)
-    timeouts.push(setTimeout(forcePlay, 500));
+    const t1 = setTimeout(forcePlay, 500);
+    const t2 = setTimeout(forcePlay, 1500);
+    const t3 = setTimeout(forcePlay, 3000);
     
-    // Attempt 3: 1500ms (throttled tab check)
-    timeouts.push(setTimeout(forcePlay, 1500));
-    
-    // Attempt 4: 3000ms (heavy throttle check)
-    timeouts.push(setTimeout(() => {
+    const tEnd = setTimeout(() => {
         forcePlay();
-        isChangingVideo.current = false; // Release lock
-    }, 3000));
+        isChangingVideo.current = false;
+    }, 4500);
 
     return () => {
-      timeouts.forEach(t => clearTimeout(t));
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(tEnd);
     };
   }, [videoId]);
 
-
-  // Handle Quality Updates
+  // Handle Props Updates
   useEffect(() => {
-    if (playerRef.current) {
-      applyQuality(playerRef.current);
-    }
+    if (playerRef.current) applyQuality(playerRef.current);
   }, [videoQuality]);
 
-  // Handle Volume Updates
   useEffect(() => {
     if (playerRef.current && typeof playerRef.current.setVolume === 'function') {
       playerRef.current.setVolume(volume);
@@ -117,6 +109,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     setPlayerRef(event.target);
     applyQuality(event.target);
     event.target.setVolume(volume);
+    // Force play on ready
     event.target.playVideo();
   };
 
@@ -124,11 +117,11 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     const playerState = event.data;
     const player = event.target;
 
-    // YT Player States:
-    // -1 (unstarted), 0 (ended), 1 (playing), 2 (paused), 3 (buffering), 5 (cued)
+    // 1 = Playing, 2 = Paused, 3 = Buffering, 0 = Ended, -1 = Unstarted, 5 = Cued
 
     if (playerState === 1) { // PLAYING
-       isChangingVideo.current = false; // Confirm we are playing
+       isChangingVideo.current = false; 
+       isStartingUp.current = false; // Disable guard once we successfully play
        onPlay();
        applyQuality(player);
     }
@@ -138,20 +131,20 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     }
     
     else if (playerState === 2) { // PAUSED
-      // BACKGROUND FIX: If we just changed video and it paused immediately, 
-      // it means the browser blocked autoplay. Force it back!
-      if (isChangingVideo.current) {
-        console.log("Auto-Resume: Browser tried to pause new video, forcing play.");
-        setTimeout(() => player.playVideo(), 100);
+      // CRITICAL FIX:
+      // If paused happens while changing video OR during startup phase,
+      // DO NOT report 'onPause' to parent. Just force play again.
+      if (isChangingVideo.current || isStartingUp.current) {
+        console.log("Auto-Resume: Ignoring Browser Auto-Pause");
+        setTimeout(() => player.playVideo(), 200);
       } else {
+        // Only trigger real pause if user did it manually outside of startup/loading
         onPause();
       }
     }
     
-    else if (playerState === -1 || playerState === 5) { // UNSTARTED or CUED
-       // Critical for Background tabs: if it stays in -1 or 5, it means it loaded but didn't start.
-       // We force it.
-       console.log("State Stuck (Unstarted/Cued): Forcing Play");
+    else if (playerState === -1 || playerState === 5) { // UNSTARTED / CUED
+       // Always force play these states
        player.playVideo();
     }
     
@@ -187,7 +180,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
       iv_load_policy: 3, 
       playsinline: 1,
       fs: 0, 
-      origin: window.location.origin, // Helps with some autoplay policies
+      origin: window.location.origin, 
     },
   };
 
@@ -196,8 +189,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
       ref={containerRef}
       className="relative w-full aspect-video bg-black border-4 border-black overflow-hidden group"
     >
-      
-      {/* 1. Thumbnail Layer (Visible when showVideo is FALSE) */}
+      {/* Thumbnail Layer */}
       <div 
         className={`absolute inset-0 z-10 flex items-center justify-center bg-black transition-opacity duration-300 overflow-hidden ${showVideo ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       >
@@ -210,9 +202,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
           ) : (
              <div className="absolute inset-0 bg-neo-yellow opacity-100"></div>
           )}
-          
           <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"></div>
-          
           <div className="z-10 text-center p-4">
               <div className="inline-block border-4 border-black bg-white px-4 py-2 font-display font-black text-xl sm:text-2xl uppercase tracking-tighter shadow-neo">
                 AUDIO MODE
@@ -220,7 +210,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
           </div>
       </div>
 
-      {/* 2. YouTube Player Layer */}
+      {/* YouTube Player */}
       <div className={`relative w-full h-full ${showVideo ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
         <YouTube
           videoId={videoId}
@@ -230,13 +220,12 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
           className="h-full w-full"
           iframeClassName="h-full w-full"
         />
-        
         {showVideo && !isFullscreen && (
            <div className="absolute inset-0 z-30 bg-transparent w-full h-full cursor-default"></div>
         )}
       </div>
 
-      {/* 3. CUSTOM EXIT FULLSCREEN BUTTON */}
+      {/* Exit Fullscreen */}
       {isFullscreen && (
         <button
           onClick={handleExitFullscreen}
@@ -248,7 +237,6 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
           </svg>
         </button>
       )}
-
     </div>
   );
 };
