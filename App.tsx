@@ -868,6 +868,7 @@ const App: React.FC = () => {
                 {currentVideo ? (
                     <PlayerScreen 
                       videoId={currentVideo.id}
+                      thumbnail={currentVideo.thumbnail} 
                       showVideo={showVideo}
                       videoQuality={effectiveQuality}
                       loopMode={loopMode}

@@ -4,6 +4,7 @@ import { VideoQuality, LoopMode } from '../types';
 
 interface PlayerScreenProps {
   videoId: string;
+  thumbnail?: string; // Added thumbnail prop
   showVideo: boolean;
   videoQuality: VideoQuality;
   loopMode: LoopMode;
@@ -17,6 +18,7 @@ interface PlayerScreenProps {
 
 const PlayerScreen: React.FC<PlayerScreenProps> = ({
   videoId,
+  thumbnail,
   showVideo,
   videoQuality,
   loopMode,
@@ -129,15 +131,28 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
       className="relative w-full aspect-video bg-black border-4 border-black overflow-hidden group"
     >
       
-      {/* 1. Placeholder Layer (Visible when showVideo is FALSE) */}
+      {/* 1. Thumbnail Layer (Visible when showVideo is FALSE) */}
       <div 
-        className={`absolute inset-0 z-10 flex items-center justify-center bg-neo-yellow transition-opacity duration-300 ${showVideo ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        className={`absolute inset-0 z-10 flex items-center justify-center bg-black transition-opacity duration-300 overflow-hidden ${showVideo ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       >
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-black to-transparent"></div>
+          {thumbnail ? (
+              <img 
+                src={thumbnail} 
+                alt="Audio Mode Art" 
+                className="absolute inset-0 w-full h-full object-cover opacity-80"
+              />
+          ) : (
+             <div className="absolute inset-0 bg-neo-yellow opacity-100"></div>
+          )}
+          
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"></div>
+          
           <div className="z-10 text-center p-4">
-              <h3 className="font-display text-4xl sm:text-6xl font-black text-black opacity-80 uppercase tracking-tighter">Audio Only</h3>
-              <div className="mt-4 inline-block border-4 border-black bg-white px-4 py-1 font-mono text-sm font-bold animate-pulse">
-                {videoQuality === VideoQuality.ZERO || videoQuality === VideoQuality.TINY ? "10p ECO MODE" : "PLAYING..."}
+              <div className="inline-block border-4 border-black bg-white px-4 py-2 font-display font-black text-xl sm:text-2xl uppercase tracking-tighter shadow-neo">
+                AUDIO MODE
+              </div>
+              <div className="mt-2 font-mono text-xs sm:text-sm font-bold text-white bg-black px-2 inline-block">
+                {videoQuality === VideoQuality.ZERO || videoQuality === VideoQuality.TINY ? "10p ECO" : "PLAYING"}
               </div>
           </div>
       </div>
