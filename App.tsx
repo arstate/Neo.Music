@@ -759,13 +759,13 @@ const App: React.FC = () => {
             isDesktopSidebarOpen ? 'w-96 opacity-100' : 'w-0 opacity-0 overflow-hidden border-r-0'
           }`}
         >
-          <div className="border-b-4 border-black bg-neo-yellow p-6 min-w-[24rem]">
+          <div className="border-b-4 border-black bg-neo-yellow p-6">
             <h1 className="font-display text-2xl font-black uppercase tracking-tighter">
               NEO<span className="text-neo-pink">.</span>MUSIC
             </h1>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-6 min-w-[24rem]">
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-6">
              <div>
                <div className="flex justify-between items-center mb-2 border-b-2 border-black pb-1">
                  <h3 className="font-display font-black text-lg">LIBRARY</h3>
@@ -967,15 +967,15 @@ const App: React.FC = () => {
       </div>
 
       <footer className="z-50 flex-none border-t-4 border-black bg-white p-2 pb-[calc(env(safe-area-inset-bottom)+2rem)] md:pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)] transition-all">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-          <div className="w-full sm:mb-2 sm:w-1/4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
+          <div className="w-full sm:mb-2 sm:w-64 sm:flex-none">
              <div className="overflow-hidden border-2 border-black bg-neo-yellow p-1 sm:p-2">
                 <div className="whitespace-nowrap font-mono text-xs sm:text-sm font-bold text-black animate-marquee">
                   {currentVideo ? `${currentVideo.title} /// ${currentVideo.channelTitle}` : "WAITING FOR INPUT..."}
                 </div>
               </div>
           </div>
-          <div className="flex-1 w-full sm:w-2/4">
+          <div className="w-full sm:flex-1 min-w-0">
               <Controls 
                   isPlaying={isPlaying} 
                   onPlayPause={togglePlayPause} 
@@ -987,26 +987,28 @@ const App: React.FC = () => {
                   onSkip={handleSkip}
                 />
           </div>
-          <div className="flex w-full justify-center sm:w-1/4 sm:justify-end sm:mb-2 overflow-x-auto">
-             <SettingsPanel 
-               showVideo={showVideo} 
-               setShowVideo={setShowVideo}
-               videoQuality={videoQuality}
-               setVideoQuality={setVideoQuality}
-               audioQuality={audioQuality}
-               setAudioQuality={setAudioQuality}
-               isDataSaver={isDataSaver}
-               toggleDataSaver={toggleDataSaver}
-               loopMode={loopMode}
-               setLoopMode={setLoopMode}
-               isBackgroundMode={isBackgroundMode}
-               toggleBackgroundMode={toggleBackgroundMode}
-               volume={volume}
-               setVolume={setVolume}
-               installPrompt={installPrompt}
-               handleInstallClick={handleInstallClick}
-               onToggleFullscreen={toggleFullscreen}
-             />
+          <div className="w-full sm:w-auto sm:flex-none sm:mb-2 overflow-x-auto no-scrollbar">
+             <div className="w-fit mx-auto sm:ml-auto sm:mr-0">
+                <SettingsPanel 
+                  showVideo={showVideo} 
+                  setShowVideo={setShowVideo}
+                  videoQuality={videoQuality}
+                  setVideoQuality={setVideoQuality}
+                  audioQuality={audioQuality}
+                  setAudioQuality={setAudioQuality}
+                  isDataSaver={isDataSaver}
+                  toggleDataSaver={toggleDataSaver}
+                  loopMode={loopMode}
+                  setLoopMode={setLoopMode}
+                  isBackgroundMode={isBackgroundMode}
+                  toggleBackgroundMode={toggleBackgroundMode}
+                  volume={volume}
+                  setVolume={setVolume}
+                  installPrompt={installPrompt}
+                  handleInstallClick={handleInstallClick}
+                  onToggleFullscreen={toggleFullscreen}
+                />
+             </div>
           </div>
         </div>
       </footer>
