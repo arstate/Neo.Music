@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { VideoResult, VideoQuality, AudioQuality, LoopMode, SavedPlaylist } from './types';
 import { searchVideos, getSearchSuggestions } from './services/youtubeService';
@@ -71,9 +72,6 @@ const App: React.FC = () => {
   const playlistRef = useRef(playlist);
   const currentIndexRef = useRef(currentIndex);
   const isPlayingRef = useRef(isPlaying);
-  
-  // Ref to prevent double-skipping (race condition between Timer and onEnd event)
-  const isTransitioningRef = useRef(false);
 
   // --- PERSISTENCE ---
   // Load Playlists on Mount with Sanitization
@@ -147,88 +145,33 @@ const App: React.FC = () => {
     initSearch();
   }, []);
 
-  // --- Logic Helpers ---
-
-  // CRITICAL FIX: Directly call playerObj.loadVideoById.
-  const playNext = useCallback(() => {
-    // Prevent multiple calls
-    if (isTransitioningRef.current) return;
-    isTransitioningRef.current = true;
-
-    const pList = playlistRef.current; 
-    const cIndex = currentIndexRef.current;
-    
-    if (pList.length === 0) {
-        isTransitioningRef.current = false;
-        return;
-    }
-    
-    const nextIndex = (cIndex + 1) % pList.length;
-    const nextVideo = pList[nextIndex];
-
-    if (playerObj && typeof playerObj.loadVideoById === 'function') {
-       playerObj.loadVideoById(nextVideo.id);
-    }
-
-    setCurrentIndex(nextIndex);
-    setIsPlaying(true);
-
-    // Release lock after a short delay to allow video to load
-    setTimeout(() => {
-        isTransitioningRef.current = false;
-    }, 2000);
-  }, [playerObj]);
-
-  const playPrev = useCallback(() => {
-    if (isTransitioningRef.current) return;
-    isTransitioningRef.current = true;
-
-    const pList = playlistRef.current;
-    const cIndex = currentIndexRef.current;
-    if (pList.length === 0) {
-        isTransitioningRef.current = false;
-        return;
-    }
-    
-    const prevIndex = (cIndex - 1 + pList.length) % pList.length;
-    const prevVideo = pList[prevIndex];
-
-    if (playerObj && typeof playerObj.loadVideoById === 'function') {
-      playerObj.loadVideoById(prevVideo.id);
-    }
-
-    setCurrentIndex(prevIndex);
-    setIsPlaying(true);
-
-    setTimeout(() => {
-        isTransitioningRef.current = false;
-    }, 2000);
-  }, [playerObj]);
-
-
-  // Timer loop for progress bar, MediaSession Position Sync, AND BACKGROUND AUTO-NEXT
+  // --- CORE WATCHDOG & TIMER ---
+  // Timer loop for progress bar AND MediaSession Position Sync AND Background Watchdog
   useEffect(() => {
-    if (isPlaying && playerObj) {
-      // Increased frequency to 250ms for better accuracy near end of song
+    // Only run if we conceptually WANT to play
+    if (isPlaying) {
       timerRef.current = window.setInterval(() => {
+        if (!playerObj) return;
+
+        // 1. WATCHDOG: Force Play if stuck in Paused/Cued/Unstarted while isPlaying is true
+        if (typeof playerObj.getPlayerState === 'function') {
+           const state = playerObj.getPlayerState();
+           // -1 (unstarted), 2 (paused), 5 (cued). 0 (ended) is handled by onEnd callback usually.
+           // If we are "isPlaying" but the player is paused, force it.
+           // Note: state 3 is buffering, we let that happen.
+           if (state === 2 || state === 5 || state === -1) {
+              console.log("Background Watchdog: Forcing Playback");
+              playerObj.playVideo();
+           }
+        }
+
+        // 2. TIME SYNC
         if (playerObj.getCurrentTime && playerObj.getDuration) {
           const time = playerObj.getCurrentTime();
           const dur = playerObj.getDuration();
-          
           setCurrentTime(time);
           if (dur && dur > 0 && dur !== duration) {
             setDuration(dur);
-          }
-
-          // --- PRE-EMPTIVE SKIP LOGIC FOR BACKGROUND PLAYBACK ---
-          // Skip to next song when 1.5 seconds remain.
-          // This keeps the JS thread alive before the browser kills it at 'ended' event.
-          if (loopMode !== LoopMode.ONE && dur > 0 && time > 0) {
-             const remaining = dur - time;
-             if (remaining <= 1.5 && remaining > 0 && !isTransitioningRef.current) {
-                 console.log("Pre-emptive background skip triggered");
-                 playNext();
-             }
           }
 
           if ('mediaSession' in navigator) {
@@ -245,7 +188,7 @@ const App: React.FC = () => {
             }
           }
         }
-      }, 250); 
+      }, 1000); // 1 Second interval is safer for background throttling
     } else {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -254,7 +197,7 @@ const App: React.FC = () => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, playerObj, duration, loopMode, playNext]);
+  }, [isPlaying, playerObj, duration]);
 
   // Reset time when video changes
   useEffect(() => {
@@ -326,17 +269,54 @@ const App: React.FC = () => {
     }
   }, [isPlaying, playerObj]);
 
+
+  // --- Logic Helpers ---
+
+  // CRITICAL FIX: Directly call playerObj.loadVideoById.
+  const playNext = useCallback(() => {
+    const pList = playlistRef.current; 
+    const cIndex = currentIndexRef.current;
+    if (pList.length === 0) return;
+    
+    const nextIndex = (cIndex + 1) % pList.length;
+    const nextVideo = pList[nextIndex];
+
+    setCurrentIndex(nextIndex);
+    setIsPlaying(true);
+
+    if (playerObj && typeof playerObj.loadVideoById === 'function') {
+       // Force reload and force play immediately
+       playerObj.loadVideoById(nextVideo.id);
+       setTimeout(() => {
+         if (playerObj.playVideo) playerObj.playVideo();
+       }, 100);
+    }
+  }, [playerObj]);
+
+  const playPrev = useCallback(() => {
+    const pList = playlistRef.current;
+    const cIndex = currentIndexRef.current;
+    if (pList.length === 0) return;
+    
+    const prevIndex = (cIndex - 1 + pList.length) % pList.length;
+    const prevVideo = pList[prevIndex];
+
+    setCurrentIndex(prevIndex);
+    setIsPlaying(true);
+
+    if (playerObj && typeof playerObj.loadVideoById === 'function') {
+      playerObj.loadVideoById(prevVideo.id);
+      setTimeout(() => {
+         if (playerObj.playVideo) playerObj.playVideo();
+       }, 100);
+    }
+  }, [playerObj]);
+
   // --- MEDIA SESSION API INTEGRATION ---
   useEffect(() => {
     if ('mediaSession' in navigator) {
-      const handleNextTrack = () => {
-         playNext();
-      };
-
-      const handlePrevTrack = () => {
-         playPrev();
-      };
-
+      const handleNextTrack = () => { playNext(); };
+      const handlePrevTrack = () => { playPrev(); };
       const handlePlay = () => setIsPlaying(true);
       const handlePause = () => setIsPlaying(false);
       const handleStop = () => setIsPlaying(false);
@@ -347,7 +327,7 @@ const App: React.FC = () => {
       navigator.mediaSession.setActionHandler('previoustrack', handlePrevTrack);
       navigator.mediaSession.setActionHandler('nexttrack', handleNextTrack);
     }
-  }, [playNext, playPrev]);
+  }, [playNext, playPrev]); 
 
   useEffect(() => {
     if ('mediaSession' in navigator) {
@@ -362,6 +342,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if ('mediaSession' in navigator && currentVideo) {
+      // Defensive coding to filter out empty images
       const validArtwork = [
         { src: currentVideo.thumbnail || '', sizes: '96x96', type: 'image/jpg' },
         { src: currentVideo.thumbnail || '', sizes: '128x128', type: 'image/jpg' },
@@ -546,9 +527,6 @@ const App: React.FC = () => {
   };
 
   const handleVideoEnd = () => {
-    // If transition already happened via timer, do nothing
-    if (isTransitioningRef.current) return;
-
     if (loopMode === LoopMode.ONE) {
       playerObj?.seekTo(0);
       playerObj?.playVideo();

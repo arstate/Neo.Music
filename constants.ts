@@ -1,7 +1,7 @@
 
 // List of API Keys for rotation strategy
 export const YOUTUBE_API_KEYS = [
-  'AIzaSyCe', // User provided key
+  'AIzaSyCe', // User provided key (Primary)
   'AIzaSyAs8bePXF_yYJdgGKbFLTVLq06DTwngOQQ',
   'AIzaSyCe5-HkDEUTmGwjBQ8TrL-sxs_SMLLTjVA',
   'AIzaSyAKNAH4Tzd08pWYpVlwDx-ehXYbpfvsCqo',
