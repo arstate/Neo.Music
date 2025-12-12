@@ -136,7 +136,8 @@ const App: React.FC = () => {
         if (results && results.length > 0) {
           setPlaylist(results);
           setCurrentIndex(0);
-          setIsPlaying(true); // Auto-play enabled here
+          // REMOVED: setIsPlaying(true); 
+          // We now want the user to initiate the first playback manually.
         }
       } catch (e) {
         console.error("Initial auto-search failed:", e);
@@ -281,7 +282,7 @@ const App: React.FC = () => {
     const nextVideo = pList[nextIndex];
 
     setCurrentIndex(nextIndex);
-    setIsPlaying(true);
+    setIsPlaying(true); // Ensures auto-play intent for next track
 
     if (playerObj && typeof playerObj.loadVideoById === 'function') {
        // Using Object syntax allows passing startSeconds and forcing load
@@ -902,6 +903,7 @@ const App: React.FC = () => {
                       videoQuality={effectiveQuality}
                       loopMode={loopMode}
                       volume={volume}
+                      shouldPlay={isPlaying} // CRITICAL: Pass the app's play state
                       onEnd={handleVideoEnd}
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => {}} 

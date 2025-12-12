@@ -10,6 +10,7 @@ interface PlayerScreenProps {
   videoQuality: VideoQuality;
   loopMode: LoopMode;
   volume: number;
+  shouldPlay: boolean; // Added prop to control initial autoplay intent
   onEnd: () => void;
   onPlay: () => void;
   onPause: () => void;
@@ -24,6 +25,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
   videoQuality,
   loopMode,
   volume,
+  shouldPlay, // Deconstruct new prop
   onEnd,
   onPlay,
   onPause,
@@ -36,7 +38,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
   // Ref to track video changes
   const isChangingVideo = useRef(false);
   
-  // NEW: Startup Guard. Prevents browser auto-pause from killing the app state immediately.
+  // Startup Guard
   const isStartingUp = useRef(true);
 
   const getApiQuality = (q: VideoQuality) => {
@@ -62,11 +64,18 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
 
   // --- FORCE PLAY LOGIC ---
   useEffect(() => {
+    // CRITICAL FIX: Only start the aggressive force-play loop if the parent
+    // actually wants us to play. This prevents auto-play on initial load.
+    if (!shouldPlay) {
+        isChangingVideo.current = false;
+        return; 
+    }
+
     isChangingVideo.current = true;
     
     // Reset startup guard on new video
     isStartingUp.current = true;
-    setTimeout(() => { isStartingUp.current = false; }, 4000); // 4 seconds immunity
+    setTimeout(() => { isStartingUp.current = false; }, 4000); 
 
     const forcePlay = () => {
       if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
@@ -91,7 +100,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
       clearTimeout(t3);
       clearTimeout(tEnd);
     };
-  }, [videoId]);
+  }, [videoId]); // Dependency on videoId ensures this runs on track change
 
   // Handle Props Updates
   useEffect(() => {
@@ -109,8 +118,13 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     setPlayerRef(event.target);
     applyQuality(event.target);
     event.target.setVolume(volume);
-    // Force play on ready
-    event.target.playVideo();
+    
+    // Only auto-start on ready if the app state is Playing
+    if (shouldPlay) {
+        event.target.playVideo();
+    } else {
+        event.target.pauseVideo();
+    }
   };
 
   const onPlayerStateChange: YouTubeProps['onStateChange'] = (event) => {
@@ -121,7 +135,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
 
     if (playerState === 1) { // PLAYING
        isChangingVideo.current = false; 
-       isStartingUp.current = false; // Disable guard once we successfully play
+       isStartingUp.current = false; 
        onPlay();
        applyQuality(player);
     }
@@ -131,21 +145,20 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     }
     
     else if (playerState === 2) { // PAUSED
-      // CRITICAL FIX:
-      // If paused happens while changing video OR during startup phase,
-      // DO NOT report 'onPause' to parent. Just force play again.
-      if (isChangingVideo.current || isStartingUp.current) {
+      // Only ignore browser pause if we are aggressively trying to play (during transition)
+      if (shouldPlay && (isChangingVideo.current || isStartingUp.current)) {
         console.log("Auto-Resume: Ignoring Browser Auto-Pause");
         setTimeout(() => player.playVideo(), 200);
       } else {
-        // Only trigger real pause if user did it manually outside of startup/loading
         onPause();
       }
     }
     
     else if (playerState === -1 || playerState === 5) { // UNSTARTED / CUED
-       // Always force play these states
-       player.playVideo();
+       // Only force play if we are supposed to be playing
+       if (shouldPlay) {
+         player.playVideo();
+       }
     }
     
     else if (playerState === 0) { // ENDED
@@ -172,7 +185,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     height: '100%',
     width: '100%',
     playerVars: {
-      autoplay: 1,
+      autoplay: 1, // We keep this 1, but control it via onReady/shouldPlay logic
       controls: 0, 
       disablekb: 1, 
       modestbranding: 1,
