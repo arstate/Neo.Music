@@ -22,6 +22,9 @@ const App: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerObj, setPlayerObj] = useState<any>(null);
 
+  // CRITICAL FIX: State to force-kill player during search transitions
+  const [isLoadingNewQueue, setIsLoadingNewQueue] = useState(false);
+
   // Saved Playlists (Library)
   const [savedPlaylists, setSavedPlaylists] = useState<SavedPlaylist[]>([]);
   
@@ -273,9 +276,6 @@ const App: React.FC = () => {
 
   // --- Logic Helpers ---
 
-  // CRITICAL FIX: Removed manual loadVideoById calls.
-  // We now rely purely on React State (currentIndex) -> PlayerScreen (videoId prop) -> react-youtube
-  // This prevents race conditions where the app and the component both try to load the video.
   const playNext = useCallback(() => {
     const pList = playlistRef.current; 
     const cIndex = currentIndexRef.current;
@@ -451,9 +451,17 @@ const App: React.FC = () => {
 
   const loadPlaylistToQueue = (pl: SavedPlaylist) => {
     if (pl.videos.length > 0) {
+      // Transition logic for loading playlist
+      setIsLoadingNewQueue(true);
+      setIsPlaying(false);
+      
       setPlaylist([...pl.videos]);
       setCurrentIndex(0);
-      setIsPlaying(true);
+      
+      setTimeout(() => {
+        setIsLoadingNewQueue(false);
+        setIsPlaying(true);
+      }, 500);
     } else {
       alert('Playlist is empty!');
     }
@@ -472,7 +480,6 @@ const App: React.FC = () => {
     
     setSavedPlaylists(savedPlaylists.map(pl => {
       if (pl.id === playlistId) {
-        // Prevent duplicates? Optional. Let's allow for now or just check id
         const exists = pl.videos.some(v => v.id === selectedVideoForAdd.id);
         if (exists) return pl;
         return { ...pl, videos: [...pl.videos, selectedVideoForAdd] };
@@ -507,20 +514,38 @@ const App: React.FC = () => {
     if (!searchQuery.trim()) return;
     setShowSuggestions(false);
     
+    // NUCLEAR SAFEGUARD:
+    // 1. Immediately kill playback
+    // 2. Unmount the player component via isLoadingNewQueue
+    // 3. This releases the iframe and prevents "this.g.src" errors on mobile
+    setIsPlaying(false);
+    setIsLoadingNewQueue(true);
+    setPlayerObj(null); 
+
     try {
       const results = await searchVideos(searchQuery, 10);
-      if (results && results.length > 0) {
-        // Force player cleanup first before setting new playlist
-        // This is handled by the 'key' prop on PlayerScreen automatically now
-        setPlaylist(results);
-        setCurrentIndex(0);
-        setIsPlaying(true); 
-      } else {
-        // Optional: Alert user if no results found
-        console.log("No results found or API failure handled gracefully.");
-      }
+      
+      // Delay state updates slightly to allow UI to unmount player completely
+      setTimeout(() => {
+        if (results && results.length > 0) {
+          setPlaylist(results);
+          setCurrentIndex(0);
+          
+          // Remount player after data is ready
+          setTimeout(() => {
+             setIsLoadingNewQueue(false);
+             setIsPlaying(true); 
+          }, 300);
+        } else {
+          // If no results, still need to reset loading state
+          setIsLoadingNewQueue(false);
+          console.log("No results found.");
+        }
+      }, 200);
+
     } catch (error) {
       console.error("Search failed:", error);
+      setIsLoadingNewQueue(false);
     }
   };
 
@@ -648,8 +673,7 @@ const App: React.FC = () => {
       {/* MODALS */}
       {modalMode !== 'NONE' && (
         <div className="fixed inset-0 z-[100] flex items-start pt-20 sm:pt-0 sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-           
-           {/* CREATE / EDIT PLAYLIST MODAL */}
+           {/* ... Modals (No changes here) ... */}
            {(modalMode === 'CREATE_PLAYLIST' || modalMode === 'EDIT_PLAYLIST') && (
               <div className="w-full max-w-sm bg-white border-4 border-black shadow-neo p-4 animate-in fade-in zoom-in duration-200">
                 <h2 className="font-display text-xl font-black mb-4 uppercase">
@@ -672,7 +696,6 @@ const App: React.FC = () => {
               </div>
            )}
 
-           {/* ADD TO PLAYLIST MODAL */}
            {modalMode === 'ADD_TO_PLAYLIST' && selectedVideoForAdd && (
               <div className="w-full max-w-sm bg-white border-4 border-black shadow-neo p-4 animate-in fade-in zoom-in duration-200 max-h-[80vh] flex flex-col">
                  <h2 className="font-display text-xl font-black mb-2 uppercase">Add to Library</h2>
@@ -715,7 +738,6 @@ const App: React.FC = () => {
       {isBackgroundMode && (
           <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-neo-yellow p-6 text-center">
               <div className="max-w-md border-4 border-black bg-white p-6 shadow-neo animate-bounce-slow">
-                   {/* ... Content same as before ... */}
                   <h1 className="font-display text-2xl font-black uppercase mb-2">Background Mode ON</h1>
                   <p className="font-mono text-sm mb-6 font-bold">Safe to lock screen.</p>
                   <button 
@@ -731,7 +753,7 @@ const App: React.FC = () => {
       {/* Top Section: Sidebar + Main Content */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         
-        {/* SIDEBAR (Library) - Desktop (Toggleable & Wider: w-96) */}
+        {/* SIDEBAR (Library) - Desktop */}
         <aside 
           className={`hidden flex-col border-r-4 border-black bg-white transition-[width,opacity] duration-300 ease-in-out md:flex ${
             isDesktopSidebarOpen ? 'w-96 opacity-100' : 'w-0 opacity-0 overflow-hidden border-r-0'
@@ -744,8 +766,6 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-6 min-w-[24rem]">
-             
-             {/* SAVED PLAYLISTS */}
              <div>
                <div className="flex justify-between items-center mb-2 border-b-2 border-black pb-1">
                  <h3 className="font-display font-black text-lg">LIBRARY</h3>
@@ -846,7 +866,6 @@ const App: React.FC = () => {
                         </button>
                     </form>
 
-                    {/* Suggestions */}
                     {showSuggestions && suggestions.length > 0 && (
                         <div className="absolute top-full left-0 mt-1 w-full border-4 border-black bg-white shadow-neo z-50">
                             {suggestions.map((suggestion, index) => (
@@ -867,6 +886,7 @@ const App: React.FC = () => {
           {/* MOBILE DRAWER (For Library) */}
           {isMobileSidebarOpen && (
             <div className="md:hidden absolute inset-0 z-50 bg-white flex flex-col p-4 animate-in slide-in-from-left duration-200">
+               {/* ... Mobile Sidebar Content ... */}
                <div className="flex justify-between items-center mb-6 border-b-4 border-black pb-2">
                  <h2 className="font-display font-black text-2xl">LIBRARY</h2>
                  <button onClick={() => setIsMobileSidebarOpen(false)} className="border-2 border-black px-2 font-bold bg-red-500 text-white">X</button>
@@ -901,9 +921,9 @@ const App: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 custom-scrollbar">
             <div className="mx-auto max-w-4xl">
               <div className="mb-4 sm:mb-6 w-full border-4 border-black bg-black shadow-neo">
-                {currentVideo ? (
+                {currentVideo && !isLoadingNewQueue ? (
                     <PlayerScreen 
-                      key={currentVideo.id} /* NUCLEAR FIX: Force full remount on video change */
+                      key={currentVideo.id}
                       videoId={currentVideo.id}
                       thumbnail={currentVideo.thumbnail} 
                       showVideo={showVideo}
@@ -920,14 +940,17 @@ const App: React.FC = () => {
                 ) : (
                   <div className="flex h-48 sm:h-96 w-full items-center justify-center bg-neo-blue text-white">
                     <div className="text-center p-4">
-                       <h2 className="font-display text-2xl sm:text-4xl font-black">LOADING...</h2>
-                       <p className="mt-2 font-mono text-xs sm:text-base">INITIALIZING TAPE</p>
+                       <h2 className="font-display text-2xl sm:text-4xl font-black animate-pulse">
+                         {isLoadingNewQueue ? "FETCHING..." : "LOADING..."}
+                       </h2>
+                       <p className="mt-2 font-mono text-xs sm:text-base">
+                         {isLoadingNewQueue ? "INSERTING NEW TAPE" : "INITIALIZING TAPE"}
+                       </p>
                     </div>
                   </div>
                 )}
               </div>
               
-              {/* Mobile View Playlist (Queue) */}
               <div className="md:hidden pb-4">
                  <div className="mb-2 font-display font-black border-b-2 border-black">NOW PLAYING</div>
                  <Playlist 
@@ -943,7 +966,6 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      {/* FOOTER */}
       <footer className="z-50 flex-none border-t-4 border-black bg-white p-2 shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)]">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="w-full sm:mb-2 sm:w-1/4">

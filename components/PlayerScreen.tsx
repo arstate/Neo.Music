@@ -152,6 +152,15 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     }
   };
 
+  const onPlayerError: YouTubeProps['onError'] = (event) => {
+      console.warn("YouTube Player Error:", event.data);
+      // Prevent crash by not throwing, just logging.
+      // 100 = Not Found, 101/150 = Embedded Not Allowed
+      if (event.data === 150 || event.data === 101) {
+          onEnd(); // Skip to next video if restricted
+      }
+  };
+
   const onPlayerStateChange: YouTubeProps['onStateChange'] = (event) => {
     const playerState = event.data;
     const player = event.target;
@@ -256,6 +265,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
           opts={opts}
           onReady={onPlayerReady}
           onStateChange={onPlayerStateChange}
+          onError={onPlayerError}
           className="h-full w-full"
           iframeClassName="h-full w-full"
         />
