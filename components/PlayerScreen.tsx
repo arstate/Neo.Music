@@ -253,7 +253,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
           <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"></div>
           <div className="z-10 text-center p-4">
               <div className="inline-block border-4 border-black bg-white px-4 py-2 font-display font-black text-xl sm:text-2xl uppercase tracking-tighter shadow-neo">
-                AUDIO MODE
+                NEO.MUSIC 
               </div>
           </div>
       </div>
