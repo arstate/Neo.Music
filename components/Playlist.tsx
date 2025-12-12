@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { VideoResult } from '../types';
 
@@ -19,7 +20,9 @@ const Playlist: React.FC<PlaylistProps> = ({ videos, currentIndex, onSelect, onD
   }
 
   return (
-    <div className="flex flex-col gap-2 pb-20 md:pb-0"> {/* Added padding bottom for mobile scroll */}
+    // Added padding (p-2) to the container to ensure hover effects (translate/shadoww) 
+    // do not get clipped by the overflow-hidden/auto parent.
+    <div className="flex flex-col gap-2 p-2 pb-20 md:pb-4">
       {videos.map((video, index) => (
         <div
           key={`${video.id}-${index}`}
