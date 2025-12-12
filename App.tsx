@@ -156,11 +156,10 @@ const App: React.FC = () => {
         // 1. WATCHDOG: Force Play if stuck in Paused/Cued/Unstarted while isPlaying is true
         if (typeof playerObj.getPlayerState === 'function') {
            const state = playerObj.getPlayerState();
-           // -1 (unstarted), 2 (paused), 5 (cued). 0 (ended) is handled by onEnd callback usually.
-           // If we are "isPlaying" but the player is paused, force it.
-           // Note: state 3 is buffering, we let that happen.
+           // -1 (unstarted), 2 (paused), 5 (cued). 
+           // If we are "isPlaying" (user wants to play) but player is effectively stopped
            if (state === 2 || state === 5 || state === -1) {
-              console.log("Background Watchdog: Forcing Playback");
+              console.log(`Background Watchdog: State is ${state}, Forcing Playback`);
               playerObj.playVideo();
            }
         }
@@ -272,7 +271,7 @@ const App: React.FC = () => {
 
   // --- Logic Helpers ---
 
-  // CRITICAL FIX: Directly call playerObj.loadVideoById.
+  // CRITICAL FIX: Directly call playerObj.loadVideoById with Object syntax for better background handling
   const playNext = useCallback(() => {
     const pList = playlistRef.current; 
     const cIndex = currentIndexRef.current;
@@ -285,11 +284,11 @@ const App: React.FC = () => {
     setIsPlaying(true);
 
     if (playerObj && typeof playerObj.loadVideoById === 'function') {
-       // Force reload and force play immediately
-       playerObj.loadVideoById(nextVideo.id);
-       setTimeout(() => {
-         if (playerObj.playVideo) playerObj.playVideo();
-       }, 100);
+       // Using Object syntax allows passing startSeconds and forcing load
+       playerObj.loadVideoById({
+         videoId: nextVideo.id,
+         startSeconds: 0
+       });
     }
   }, [playerObj]);
 
@@ -305,10 +304,10 @@ const App: React.FC = () => {
     setIsPlaying(true);
 
     if (playerObj && typeof playerObj.loadVideoById === 'function') {
-      playerObj.loadVideoById(prevVideo.id);
-      setTimeout(() => {
-         if (playerObj.playVideo) playerObj.playVideo();
-       }, 100);
+       playerObj.loadVideoById({
+         videoId: prevVideo.id,
+         startSeconds: 0
+       });
     }
   }, [playerObj]);
 
@@ -390,9 +389,11 @@ const App: React.FC = () => {
         audioContextRef.current.resume().catch(() => {});
     }
 
+    // Interval to keep checking the player state via audio context triggers if needed
+    // But mostly just to keep the thread hot.
     keepAliveIntervalRef.current = window.setInterval(() => {
         playSilentPing();
-    }, 15000); 
+    }, 10000); 
     
     playSilentPing(); 
   };

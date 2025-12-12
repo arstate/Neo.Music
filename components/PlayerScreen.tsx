@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 import { VideoQuality, LoopMode } from '../types';
@@ -31,6 +32,9 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
 }) => {
   const playerRef = useRef<any>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Ref to track if we just changed videos to prevent pause loops
+  const isChangingVideo = useRef(false);
 
   // Helper to resolve custom qualities (ZERO/10p) to API supported ones
   const getApiQuality = (q: VideoQuality) => {
@@ -57,6 +61,43 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     };
   }, []);
 
+  // --- AGGRESSIVE AUTOPLAY FIX FOR BACKGROUND/MINIMIZED ---
+  // When videoId changes, we set a flag and force play repeatedly 
+  // to overcome browser throttling in background tabs.
+  useEffect(() => {
+    isChangingVideo.current = true;
+    
+    const timeouts: NodeJS.Timeout[] = [];
+    
+    // Function to force play safely
+    const forcePlay = () => {
+      if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
+        console.log("Force Play: Triggering for new video");
+        playerRef.current.playVideo();
+      }
+    };
+
+    // Attempt 1: Immediate
+    forcePlay();
+
+    // Attempt 2: 500ms (standard lag)
+    timeouts.push(setTimeout(forcePlay, 500));
+    
+    // Attempt 3: 1500ms (throttled tab check)
+    timeouts.push(setTimeout(forcePlay, 1500));
+    
+    // Attempt 4: 3000ms (heavy throttle check)
+    timeouts.push(setTimeout(() => {
+        forcePlay();
+        isChangingVideo.current = false; // Release lock
+    }, 3000));
+
+    return () => {
+      timeouts.forEach(t => clearTimeout(t));
+    };
+  }, [videoId]);
+
+
   // Handle Quality Updates
   useEffect(() => {
     if (playerRef.current) {
@@ -80,19 +121,44 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
   };
 
   const onPlayerStateChange: YouTubeProps['onStateChange'] = (event) => {
-    // 1 = Playing, 2 = Paused, 3 = Buffering, 0 = Ended
-    if (event.data === 1) {
+    const playerState = event.data;
+    const player = event.target;
+
+    // YT Player States:
+    // -1 (unstarted), 0 (ended), 1 (playing), 2 (paused), 3 (buffering), 5 (cued)
+
+    if (playerState === 1) { // PLAYING
+       isChangingVideo.current = false; // Confirm we are playing
        onPlay();
-       applyQuality(event.target);
+       applyQuality(player);
     }
-    if (event.data === 3) {
-      applyQuality(event.target);
+    
+    else if (playerState === 3) { // BUFFERING
+      applyQuality(player);
     }
-    if (event.data === 2) onPause();
-    if (event.data === 0) {
+    
+    else if (playerState === 2) { // PAUSED
+      // BACKGROUND FIX: If we just changed video and it paused immediately, 
+      // it means the browser blocked autoplay. Force it back!
+      if (isChangingVideo.current) {
+        console.log("Auto-Resume: Browser tried to pause new video, forcing play.");
+        setTimeout(() => player.playVideo(), 100);
+      } else {
+        onPause();
+      }
+    }
+    
+    else if (playerState === -1 || playerState === 5) { // UNSTARTED or CUED
+       // Critical for Background tabs: if it stays in -1 or 5, it means it loaded but didn't start.
+       // We force it.
+       console.log("State Stuck (Unstarted/Cued): Forcing Play");
+       player.playVideo();
+    }
+    
+    else if (playerState === 0) { // ENDED
       if (loopMode === LoopMode.ONE) {
-        event.target.seekTo(0, true);
-        event.target.playVideo();
+        player.seekTo(0, true);
+        player.playVideo();
       } else {
         onEnd();
       }
@@ -114,14 +180,14 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     width: '100%',
     playerVars: {
       autoplay: 1,
-      // DISABLE CONTROLS: Removes the bottom bar, progress, and settings gear.
       controls: 0, 
-      disablekb: 1, // Disable keyboard shortcuts to prevent accidental UI triggers
+      disablekb: 1, 
       modestbranding: 1,
       rel: 0,
-      iv_load_policy: 3, // Hide annotations
+      iv_load_policy: 3, 
       playsinline: 1,
-      fs: 0, // Disable native fullscreen button (we use our own)
+      fs: 0, 
+      origin: window.location.origin, // Helps with some autoplay policies
     },
   };
 
@@ -165,23 +231,12 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
           iframeClassName="h-full w-full"
         />
         
-        {/* INTERACTION BLOCKER: 
-            In NORMAL mode (not fullscreen), this invisible layer covers the video completely.
-            This serves two purposes:
-            1. Prevents clicking the video (which would pause it and show the big YouTube play button).
-            2. Prevents HOVERING over the video (which would fade-in the top title bar and channel icon).
-            
-            In FULLSCREEN mode, this is HIDDEN to allow interaction if needed, 
-            though controls are disabled via API so it remains clean.
-        */}
         {showVideo && !isFullscreen && (
            <div className="absolute inset-0 z-30 bg-transparent w-full h-full cursor-default"></div>
         )}
       </div>
 
-      {/* 3. CUSTOM EXIT FULLSCREEN BUTTON
-          Visible only when in fullscreen mode.
-      */}
+      {/* 3. CUSTOM EXIT FULLSCREEN BUTTON */}
       {isFullscreen && (
         <button
           onClick={handleExitFullscreen}
