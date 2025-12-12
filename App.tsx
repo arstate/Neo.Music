@@ -152,42 +152,42 @@ const App: React.FC = () => {
     // Only run if we conceptually WANT to play
     if (isPlaying) {
       timerRef.current = window.setInterval(() => {
-        if (!playerObj) return;
+        // SAFETY CHECK: If playerObj is destroyed (null/undefined) or doesn't have methods, abort
+        if (!playerObj || typeof playerObj.getPlayerState !== 'function') return;
 
-        // 1. WATCHDOG: Force Play if stuck in Paused/Cued/Unstarted while isPlaying is true
-        if (typeof playerObj.getPlayerState === 'function') {
-           const state = playerObj.getPlayerState();
-           // -1 (unstarted), 2 (paused), 5 (cued). 
-           // If we are "isPlaying" (user wants to play) but player is effectively stopped
-           if (state === 2 || state === 5 || state === -1) {
-              // console.log(`Background Watchdog: State is ${state}, Forcing Playback`);
-              // Reduced logging to prevent console spam
-              playerObj.playVideo();
-           }
-        }
-
-        // 2. TIME SYNC
-        if (playerObj.getCurrentTime && playerObj.getDuration) {
-          const time = playerObj.getCurrentTime();
-          const dur = playerObj.getDuration();
-          setCurrentTime(time);
-          if (dur && dur > 0 && dur !== duration) {
-            setDuration(dur);
-          }
-
-          if ('mediaSession' in navigator) {
-            try {
-              if (!isNaN(dur) && !isNaN(time)) {
-                navigator.mediaSession.setPositionState({
-                  duration: dur,
-                  playbackRate: 1,
-                  position: time,
-                });
-              }
-            } catch (e) {
-              // Ignore
+        try {
+            // 1. WATCHDOG: Force Play if stuck in Paused/Cued/Unstarted while isPlaying is true
+            const state = playerObj.getPlayerState();
+            // -1 (unstarted), 2 (paused), 5 (cued). 
+            // If we are "isPlaying" (user wants to play) but player is effectively stopped
+            if (state === 2 || state === 5 || state === -1) {
+                // console.log(`Background Watchdog: State is ${state}, Forcing Playback`);
+                // Reduced logging to prevent console spam
+                playerObj.playVideo();
             }
-          }
+
+            // 2. TIME SYNC
+            if (playerObj.getCurrentTime && playerObj.getDuration) {
+                const time = playerObj.getCurrentTime();
+                const dur = playerObj.getDuration();
+                setCurrentTime(time);
+                if (dur && dur > 0 && dur !== duration) {
+                    setDuration(dur);
+                }
+
+                if ('mediaSession' in navigator) {
+                    if (!isNaN(dur) && !isNaN(time)) {
+                        navigator.mediaSession.setPositionState({
+                            duration: dur,
+                            playbackRate: 1,
+                            position: time,
+                        });
+                    }
+                }
+            }
+        } catch (err) {
+            // If playerObj becomes stale during interval execution, catch the crash
+            console.warn("Watchdog error:", err);
         }
       }, 1000); // 1 Second interval is safer for background throttling
     } else {
@@ -510,6 +510,8 @@ const App: React.FC = () => {
     try {
       const results = await searchVideos(searchQuery, 10);
       if (results && results.length > 0) {
+        // Force player cleanup first before setting new playlist
+        // This is handled by the 'key' prop on PlayerScreen automatically now
         setPlaylist(results);
         setCurrentIndex(0);
         setIsPlaying(true); 
@@ -901,13 +903,14 @@ const App: React.FC = () => {
               <div className="mb-4 sm:mb-6 w-full border-4 border-black bg-black shadow-neo">
                 {currentVideo ? (
                     <PlayerScreen 
+                      key={currentVideo.id} /* NUCLEAR FIX: Force full remount on video change */
                       videoId={currentVideo.id}
                       thumbnail={currentVideo.thumbnail} 
                       showVideo={showVideo}
                       videoQuality={effectiveQuality}
                       loopMode={loopMode}
                       volume={volume}
-                      shouldPlay={isPlaying} // CRITICAL: Pass the app's play state
+                      shouldPlay={isPlaying} 
                       onEnd={handleVideoEnd}
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => {}} 

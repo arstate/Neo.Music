@@ -53,6 +53,13 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     }
   };
 
+  // Cleanup ref on unmount to prevent parent accessing dead player
+  useEffect(() => {
+    return () => {
+        setPlayerRef(null);
+    };
+  }, []);
+
   // Fullscreen Listener
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -73,19 +80,23 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     
     // Reset startup guard on new video
     isStartingUp.current = true;
-    setTimeout(() => { isStartingUp.current = false; }, 4000); 
+    const startupTimeout = setTimeout(() => { isStartingUp.current = false; }, 4000); 
 
     const forcePlay = () => {
+      // STRICT CHECK: Ensure player exists and is a function before calling
       if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
-        playerRef.current.playVideo();
+        try {
+            playerRef.current.playVideo();
+        } catch(e) {
+            console.warn("Force play failed safely", e);
+        }
       }
     };
 
     // Retry sequence to break browser throttling
-    forcePlay();
+    // Reduced aggression to prevent "null object" errors on slow mobile devices
     const t1 = setTimeout(forcePlay, 500);
     const t2 = setTimeout(forcePlay, 1500);
-    const t3 = setTimeout(forcePlay, 3000);
     
     const tEnd = setTimeout(() => {
         forcePlay();
@@ -93,9 +104,9 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     }, 4500);
 
     return () => {
+      clearTimeout(startupTimeout);
       clearTimeout(t1);
       clearTimeout(t2);
-      clearTimeout(t3);
       clearTimeout(tEnd);
     };
   }, [videoId]); // Dependency on videoId ensures this runs on track change
@@ -113,7 +124,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
 
   // Handle Play/Pause intent changes from Parent (User clicks buttons)
   useEffect(() => {
-    if (!playerRef.current) return;
+    if (!playerRef.current || typeof playerRef.current.getPlayerState !== 'function') return;
     
     // If the parent says we should be playing, but the player is paused, play it.
     // If the parent says pause, pause it.
@@ -161,7 +172,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     else if (playerState === 2) { // PAUSED
       // Only ignore browser pause if we are aggressively trying to play (during transition)
       if (shouldPlay && (isChangingVideo.current || isStartingUp.current)) {
-        console.log("Auto-Resume: Ignoring Browser Auto-Pause");
+        // console.log("Auto-Resume: Ignoring Browser Auto-Pause");
         setTimeout(() => player.playVideo(), 200);
       } else {
         onPause();
