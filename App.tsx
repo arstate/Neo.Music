@@ -867,7 +867,7 @@ const App: React.FC = () => {
                     </form>
 
                     {showSuggestions && suggestions.length > 0 && (
-                        <div className="absolute top-full left-0 mt-1 w-full border-4 border-black bg-white shadow-neo z-50">
+                        <div className="absolute top-full left-0 mt-1 w-full border-4 border-black bg-white shadow-neo z-50 max-h-60 overflow-y-auto">
                             {suggestions.map((suggestion, index) => (
                                 <div
                                     key={index}

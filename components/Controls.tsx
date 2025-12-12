@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface ControlsProps {
@@ -30,7 +31,7 @@ const Controls: React.FC<ControlsProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-1 w-full">
+    <div className="flex flex-col gap-1 w-full max-w-2xl mx-auto">
       {/* Slider / Time Bar */}
       <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold font-mono">
         <span className="w-10 text-right tabular-nums">{formatTime(currentTime)}</span>
