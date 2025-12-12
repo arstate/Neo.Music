@@ -112,14 +112,14 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     width: '100%',
     playerVars: {
       autoplay: 1,
-      // ENABLE CONTROLS: This is crucial to get the gear icon, quality settings, 
-      // subtitles, speed, etc. inside the fullscreen view.
-      controls: 1, 
+      // DISABLE CONTROLS: Removes the bottom bar, progress, and settings gear.
+      controls: 0, 
+      disablekb: 1, // Disable keyboard shortcuts to prevent accidental UI triggers
       modestbranding: 1,
       rel: 0,
       iv_load_policy: 3, // Hide annotations
       playsinline: 1,
-      fs: 1, // Allow native fullscreen button too
+      fs: 0, // Disable native fullscreen button (we use our own)
     },
   };
 
@@ -154,14 +154,16 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
         />
         
         {/* INTERACTION BLOCKER: 
-            In NORMAL mode (not fullscreen), this invisible layer covers the video.
-            This prevents clicking the 'Native' controls (which are now enabled),
-            forcing the user to use our custom Neo-Brutalist controls.
+            In NORMAL mode (not fullscreen), this invisible layer covers the video completely.
+            This serves two purposes:
+            1. Prevents clicking the video (which would pause it and show the big YouTube play button).
+            2. Prevents HOVERING over the video (which would fade-in the top title bar and channel icon).
             
-            In FULLSCREEN mode, this is HIDDEN, allowing full access to YouTube's native UI.
+            In FULLSCREEN mode, this is HIDDEN to allow interaction if needed, 
+            though controls are disabled via API so it remains clean.
         */}
         {showVideo && !isFullscreen && (
-           <div className="absolute inset-0 z-30 bg-transparent w-full h-full"></div>
+           <div className="absolute inset-0 z-30 bg-transparent w-full h-full cursor-default"></div>
         )}
       </div>
 
