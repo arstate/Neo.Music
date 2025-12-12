@@ -51,9 +51,6 @@ const App: React.FC = () => {
   const [isBackgroundMode, setIsBackgroundMode] = useState(false);
   const [loopMode, setLoopMode] = useState<LoopMode>(LoopMode.ALL);
 
-  // Download State
-  const [isDownloading, setIsDownloading] = useState(false);
-
   // PWA State
   const [installPrompt, setInstallPrompt] = useState<any>(null);
 
@@ -300,54 +297,6 @@ const App: React.FC = () => {
     setCurrentIndex(prevIndex);
     setIsPlaying(true);
   }, []);
-
-  const handleDownload = () => {
-    if (!currentVideo) return;
-    
-    // Simulate Download Process
-    setIsDownloading(true);
-
-    // Mock API call time (1.5s)
-    setTimeout(() => {
-      const offlineName = "OFFLINE STORAGE";
-      const existingPlaylist = savedPlaylists.find(pl => pl.name === offlineName);
-      
-      let updatedPlaylists = [...savedPlaylists];
-      
-      if (existingPlaylist) {
-         // Check if already exists
-         if (!existingPlaylist.videos.some(v => v.id === currentVideo.id)) {
-            const updatedPl = {
-                ...existingPlaylist,
-                videos: [currentVideo, ...existingPlaylist.videos] // Add to top
-            };
-            updatedPlaylists = updatedPlaylists.map(pl => pl.id === existingPlaylist.id ? updatedPl : pl);
-            alert(`SAVED TO ${offlineName} (144p PREFERENCE)`);
-         } else {
-            alert("VIDEO ALREADY IN OFFLINE STORAGE");
-         }
-      } else {
-         // Create new
-         const newPl: SavedPlaylist = {
-            id: 'offline-storage-id',
-            name: offlineName,
-            videos: [currentVideo],
-            createdAt: Date.now()
-         };
-         updatedPlaylists = [newPl, ...updatedPlaylists];
-         alert(`CREATED ${offlineName} & SAVED`);
-      }
-
-      setSavedPlaylists(updatedPlaylists);
-      setIsDownloading(false);
-      
-      // Auto open sidebar to show the download
-      if (window.innerWidth >= 768) {
-          setIsDesktopSidebarOpen(true);
-      }
-
-    }, 1500);
-  };
 
   // --- MEDIA SESSION API INTEGRATION ---
   useEffect(() => {
@@ -1017,7 +966,7 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      <footer className="z-50 flex-none border-t-4 border-black bg-white p-2 pb-[calc(env(safe-area-inset-bottom)+6rem)] md:pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)] transition-all">
+      <footer className="z-50 flex-none border-t-4 border-black bg-white p-2 pb-[calc(env(safe-area-inset-bottom)+2rem)] md:pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)] transition-all">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="w-full sm:mb-2 sm:w-1/4">
              <div className="overflow-hidden border-2 border-black bg-neo-yellow p-1 sm:p-2">
@@ -1036,8 +985,6 @@ const App: React.FC = () => {
                   duration={duration}
                   onSeek={handleSeek}
                   onSkip={handleSkip}
-                  onDownload={handleDownload}
-                  isDownloading={isDownloading}
                 />
           </div>
           <div className="flex w-full justify-center sm:w-1/4 sm:justify-end sm:mb-2 overflow-x-auto">

@@ -9,8 +9,6 @@ interface ControlsProps {
   duration: number;
   onSeek: (time: number) => void;
   onSkip: (seconds: number) => void;
-  onDownload: () => void;
-  isDownloading: boolean;
 }
 
 const Controls: React.FC<ControlsProps> = ({ 
@@ -21,9 +19,7 @@ const Controls: React.FC<ControlsProps> = ({
   currentTime,
   duration,
   onSeek,
-  onSkip,
-  onDownload,
-  isDownloading
+  onSkip
 }) => {
 
   const formatTime = (seconds: number) => {
@@ -110,24 +106,6 @@ const Controls: React.FC<ControlsProps> = ({
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="h-4 w-4 sm:h-5 sm:w-5">
             <path strokeLinecap="square" strokeLinejoin="miter" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
           </svg>
-        </button>
-
-        {/* DOWNLOAD BUTTON (NEW) */}
-        <button
-          onClick={onDownload}
-          disabled={isDownloading}
-          className={`group flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center border-2 border-black transition-all active:translate-y-0.5 ml-2 ${
-            isDownloading ? 'bg-gray-300 cursor-wait' : 'bg-neo-yellow hover:bg-orange-500 hover:text-white'
-          }`}
-          title="Download Offline (144p)"
-        >
-          {isDownloading ? (
-             <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent"></div>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="h-4 w-4 sm:h-5 sm:w-5">
-              <path strokeLinecap="square" strokeLinejoin="miter" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M12 3v13.5m0 0l3.75-3.75M12 16.5L8.25 12" />
-            </svg>
-          )}
         </button>
       </div>
     </div>
