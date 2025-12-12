@@ -966,7 +966,7 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      <footer className="z-50 flex-none border-t-4 border-black bg-white p-2 pb-[calc(env(safe-area-inset-bottom)+4rem)] md:pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)] transition-all">
+      <footer className="z-50 flex-none border-t-4 border-black bg-white p-2 pb-[calc(env(safe-area-inset-bottom)+3rem)] md:pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)] transition-all">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="w-full sm:mb-2 sm:w-1/4">
              <div className="overflow-hidden border-2 border-black bg-neo-yellow p-1 sm:p-2">
