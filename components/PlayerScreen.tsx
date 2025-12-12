@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 import { VideoQuality, LoopMode } from '../types';
 
@@ -10,7 +10,7 @@ interface PlayerScreenProps {
   videoQuality: VideoQuality;
   loopMode: LoopMode;
   volume: number;
-  shouldPlay: boolean; // Added prop to control initial autoplay intent
+  shouldPlay: boolean; 
   onEnd: () => void;
   onPlay: () => void;
   onPause: () => void;
@@ -25,7 +25,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
   videoQuality,
   loopMode,
   volume,
-  shouldPlay, // Deconstruct new prop
+  shouldPlay, 
   onEnd,
   onPlay,
   onPause,
@@ -64,8 +64,6 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
 
   // --- FORCE PLAY LOGIC ---
   useEffect(() => {
-    // CRITICAL FIX: Only start the aggressive force-play loop if the parent
-    // actually wants us to play. This prevents auto-play on initial load.
     if (!shouldPlay) {
         isChangingVideo.current = false;
         return; 
@@ -112,6 +110,22 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
       playerRef.current.setVolume(volume);
     }
   }, [volume]);
+
+  // Handle Play/Pause intent changes from Parent (User clicks buttons)
+  useEffect(() => {
+    if (!playerRef.current) return;
+    
+    // If the parent says we should be playing, but the player is paused, play it.
+    // If the parent says pause, pause it.
+    // We check player state to avoid redundant calls.
+    const state = playerRef.current.getPlayerState();
+    
+    if (shouldPlay && state !== 1 && state !== 3) {
+        playerRef.current.playVideo();
+    } else if (!shouldPlay && state === 1) {
+        playerRef.current.pauseVideo();
+    }
+  }, [shouldPlay]);
 
   const onPlayerReady: YouTubeProps['onReady'] = (event) => {
     playerRef.current = event.target;
@@ -181,11 +195,12 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
     }
   };
 
-  const opts: YouTubeProps['opts'] = {
+  // MEMOIZE OPTS to prevent re-renders of the Iframe
+  const opts: YouTubeProps['opts'] = useMemo(() => ({
     height: '100%',
     width: '100%',
     playerVars: {
-      autoplay: 1, // We keep this 1, but control it via onReady/shouldPlay logic
+      autoplay: 1, 
       controls: 0, 
       disablekb: 1, 
       modestbranding: 1,
@@ -195,7 +210,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
       fs: 0, 
       origin: window.location.origin, 
     },
-  };
+  }), []);
 
   return (
     <div 

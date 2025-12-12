@@ -1,3 +1,4 @@
+
 import { YOUTUBE_API_KEYS, YOUTUBE_SEARCH_URL } from '../constants';
 import { VideoResult } from '../types';
 
@@ -33,12 +34,16 @@ export const searchVideos = async (query: string, limit = 10): Promise<VideoResu
 
       // Validate data structure to prevent crashes downstream
       // This prevents the "white screen" error when API returns valid JSON but no items (error object)
-      if (!data.items || !Array.isArray(data.items)) {
+      if (!data || !data.items || !Array.isArray(data.items)) {
+         // Maybe it's a quota error in JSON format?
+         if (data && data.error) {
+             throw new Error(`API Error: ${data.error.message}`);
+         }
          throw new Error('Invalid API response: items array missing');
       }
 
       const validResults = data.items
-        .filter((item: any) => item.id && item.id.videoId) // Strict filter: must have videoId
+        .filter((item: any) => item && item.id && item.id.videoId) // Strict filter: must have videoId
         .map((item: any) => ({
           id: item.id.videoId,
           title: item.snippet?.title || 'Untitled',
@@ -81,8 +86,8 @@ export const getSearchSuggestions = (query: string): Promise<string[]> => {
 
     (window as any)[callbackName] = (data: any) => {
         delete (window as any)[callbackName];
-        if (document.body.contains(script)) {
-            document.body.removeChild(script);
+        if (script.parentNode) {
+            script.parentNode.removeChild(script);
         }
         // data[1] contains the suggestions array: [ ["suggestion1", ...], ... ]
         // or sometimes simply ["suggestion", ...] depending on the client param.
@@ -99,8 +104,8 @@ export const getSearchSuggestions = (query: string): Promise<string[]> => {
 
     script.onerror = () => {
         delete (window as any)[callbackName];
-        if (document.body.contains(script)) {
-            document.body.removeChild(script);
+        if (script.parentNode) {
+            script.parentNode.removeChild(script);
         }
         resolve([]);
     };
