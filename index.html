@@ -20,6 +20,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Lexend+Mega:wght@100..900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             fontFamily: {
@@ -57,6 +58,11 @@
         background-color: #e5e7eb;
         background-image: radial-gradient(#000 1px, transparent 1px);
         background-size: 20px 20px;
+        transition: background-color 0.3s ease;
+      }
+      .dark body {
+        background-color: #111827;
+        background-image: radial-gradient(#374151 1px, transparent 1px);
       }
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
@@ -91,6 +97,7 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root" class="h-full w-full"></div>

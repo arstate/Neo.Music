@@ -33,16 +33,16 @@ const Controls: React.FC<ControlsProps> = ({
   return (
     <div className="flex flex-col gap-1 w-full max-w-2xl mx-auto">
       {/* Slider / Time Bar */}
-      <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold font-mono">
+      <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold font-mono text-black dark:text-white">
         <span className="w-10 text-right tabular-nums">{formatTime(currentTime)}</span>
-        <div className="relative flex-1 h-4 sm:h-5 bg-white border-2 border-black flex items-center px-1">
+        <div className="relative flex-1 h-4 sm:h-5 bg-white dark:bg-zinc-800 border-2 border-black dark:border-white flex items-center px-1">
            <input
               type="range"
               min={0}
               max={duration || 100}
               value={currentTime}
               onChange={(e) => onSeek(parseFloat(e.target.value))}
-              className="w-full h-2 appearance-none bg-gray-200 cursor-pointer accent-neo-pink focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-white"
+              className="w-full h-2 appearance-none bg-gray-200 dark:bg-zinc-700 cursor-pointer accent-neo-pink focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:bg-black dark:[&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-white dark:[&::-webkit-slider-thumb]:border-black"
             />
         </div>
         <span className="w-10 tabular-nums">{formatTime(duration)}</span>
@@ -53,7 +53,7 @@ const Controls: React.FC<ControlsProps> = ({
         {/* Prev */}
         <button
           onClick={onPrev}
-          className="group flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center border-2 border-black bg-white hover:bg-black hover:text-white active:translate-y-0.5"
+          className="group flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center border-2 border-black dark:border-white bg-white dark:bg-zinc-800 text-black dark:text-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black active:translate-y-0.5"
           title="Previous"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="h-4 w-4 sm:h-5 sm:w-5">
@@ -64,7 +64,7 @@ const Controls: React.FC<ControlsProps> = ({
         {/* -10s */}
         <button
           onClick={() => onSkip(-10)}
-          className="flex h-8 w-8 items-center justify-center border-2 border-black bg-white text-[10px] font-bold hover:bg-neo-blue hover:text-white active:translate-y-0.5"
+          className="flex h-8 w-8 items-center justify-center border-2 border-black dark:border-white bg-white dark:bg-zinc-800 text-black dark:text-white text-[10px] font-bold hover:bg-neo-blue hover:text-white active:translate-y-0.5"
           title="Rewind 10s"
         >
           -10
@@ -73,7 +73,7 @@ const Controls: React.FC<ControlsProps> = ({
         {/* Play/Pause */}
         <button
           onClick={onPlayPause}
-          className={`group flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center border-2 border-black transition-all active:translate-y-0.5 shadow-neo-sm hover:shadow-none ${
+          className={`group flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center border-2 border-black dark:border-white transition-all active:translate-y-0.5 shadow-neo-sm dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] hover:shadow-none ${
             isPlaying ? 'bg-neo-pink text-white' : 'bg-neo-green text-black'
           }`}
           title={isPlaying ? "Pause" : "Play"}
@@ -92,7 +92,7 @@ const Controls: React.FC<ControlsProps> = ({
         {/* +10s */}
         <button
           onClick={() => onSkip(10)}
-          className="flex h-8 w-8 items-center justify-center border-2 border-black bg-white text-[10px] font-bold hover:bg-neo-blue hover:text-white active:translate-y-0.5"
+          className="flex h-8 w-8 items-center justify-center border-2 border-black dark:border-white bg-white dark:bg-zinc-800 text-black dark:text-white text-[10px] font-bold hover:bg-neo-blue hover:text-white active:translate-y-0.5"
           title="Forward 10s"
         >
           +10
@@ -101,7 +101,7 @@ const Controls: React.FC<ControlsProps> = ({
         {/* Next */}
         <button
           onClick={onNext}
-          className="group flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center border-2 border-black bg-white hover:bg-black hover:text-white active:translate-y-0.5"
+          className="group flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center border-2 border-black dark:border-white bg-white dark:bg-zinc-800 text-black dark:text-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black active:translate-y-0.5"
           title="Next"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="h-4 w-4 sm:h-5 sm:w-5">

@@ -5,6 +5,8 @@ import { VideoQuality, AudioQuality, LoopMode } from '../types';
 interface SettingsPanelProps {
   showVideo: boolean;
   setShowVideo: (show: boolean) => void;
+  isDarkMode: boolean;
+  setIsDarkMode: (dark: boolean) => void;
   videoQuality: VideoQuality;
   setVideoQuality: (q: VideoQuality) => void;
   audioQuality: AudioQuality;
@@ -25,6 +27,8 @@ interface SettingsPanelProps {
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
   showVideo,
   setShowVideo,
+  isDarkMode,
+  setIsDarkMode,
   videoQuality,
   setVideoQuality,
   audioQuality,
@@ -66,11 +70,28 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   return (
     <div className="flex flex-nowrap items-center gap-1 sm:gap-2">
 
+      {/* Dark Mode Toggle */}
+      <button
+        onClick={() => setIsDarkMode(!isDarkMode)}
+        className="flex h-8 w-8 items-center justify-center border-2 border-black dark:border-white bg-white dark:bg-zinc-800 hover:bg-neo-yellow dark:hover:text-black transition-all"
+        title="Toggle Dark Mode"
+      >
+        {isDarkMode ? (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M3 12h2.25m.386-6.364l1.591 1.591M12 18.75a6.75 6.75 0 110-13.5 6.75 6.75 0 010 13.5z" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+          </svg>
+        )}
+      </button>
+
       {/* PWA Install Button (Only visible if prompt exists) */}
       {installPrompt && (
         <button
           onClick={handleInstallClick}
-          className="flex h-8 w-auto items-center justify-center border-2 border-black bg-neo-yellow px-2 text-[10px] sm:text-xs font-bold shadow-neo-xs hover:translate-y-0.5 hover:shadow-none transition-all mr-2"
+          className="flex h-8 w-auto items-center justify-center border-2 border-black dark:border-white bg-neo-yellow px-2 text-[10px] sm:text-xs font-bold shadow-neo-xs dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] hover:translate-y-0.5 hover:shadow-none transition-all mr-2 text-black"
           title="Install App"
         >
           INSTALL APP
@@ -82,7 +103,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
           {/* Static Button to Maintain Layout Width */}
           <button
             onClick={() => setIsVolumeOpen(true)}
-            className={`flex h-8 w-8 items-center justify-center border-2 border-black bg-white hover:bg-neo-yellow transition-colors ${isVolumeOpen ? 'opacity-0' : 'opacity-100'}`}
+            className={`flex h-8 w-8 items-center justify-center border-2 border-black dark:border-white bg-white dark:bg-zinc-800 hover:bg-neo-yellow dark:hover:text-black transition-colors ${isVolumeOpen ? 'opacity-0' : 'opacity-100'}`}
             title="Volume"
           >
             {volume === 0 ? (
@@ -98,7 +119,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         
           {/* Absolute Slider Overlay */}
           {isVolumeOpen && (
-            <div className="absolute left-0 top-0 h-8 flex items-center gap-2 border-2 border-black bg-white px-2 shadow-neo-xs animate-in fade-in zoom-in duration-100 origin-left z-50 min-w-[140px]">
+            <div className="absolute left-0 top-0 h-8 flex items-center gap-2 border-2 border-black dark:border-white bg-white dark:bg-zinc-800 px-2 shadow-neo-xs dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] animate-in fade-in zoom-in duration-100 origin-left z-50 min-w-[140px]">
                <button onClick={() => setIsVolumeOpen(false)} className="hover:text-neo-pink shrink-0">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                    <path strokeLinecap="square" strokeLinejoin="miter" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
@@ -110,7 +131,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 max="100" 
                 value={volume} 
                 onChange={(e) => setVolume(Number(e.target.value))}
-                className="w-full h-1 appearance-none bg-gray-300 accent-black cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-white hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
+                className="w-full h-1 appearance-none bg-gray-300 dark:bg-zinc-600 accent-black dark:accent-white cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:bg-black dark:[&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-white dark:[&::-webkit-slider-thumb]:border-black hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
               />
             </div>
           )}
@@ -119,8 +140,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {/* Background / Minimize Button */}
       <button
         onClick={toggleBackgroundMode}
-        className={`flex h-8 w-10 sm:w-auto items-center justify-center border-2 border-black px-1 text-[10px] sm:text-xs font-bold transition-colors ${
-          isBackgroundMode ? 'bg-purple-600 text-white shadow-neo-xs' : 'bg-white text-black hover:bg-purple-100'
+        className={`flex h-8 w-10 sm:w-auto items-center justify-center border-2 border-black dark:border-white px-1 text-[10px] sm:text-xs font-bold transition-colors ${
+          isBackgroundMode ? 'bg-purple-600 text-white shadow-neo-xs dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]' : 'bg-white dark:bg-zinc-800 text-black dark:text-white hover:bg-purple-100 dark:hover:bg-purple-900'
         }`}
         title="Background Play / Minimize Info"
       >
@@ -131,12 +152,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       <button
         onClick={() => !isDataSaver && !isBackgroundMode && setShowVideo(!showVideo)}
         disabled={isDataSaver || isBackgroundMode}
-        className={`flex h-8 w-10 sm:w-auto items-center justify-center border-2 border-black px-1 text-[10px] sm:text-xs font-bold transition-colors ${
+        className={`flex h-8 w-10 sm:w-auto items-center justify-center border-2 border-black dark:border-white px-1 text-[10px] sm:text-xs font-bold transition-colors ${
           isDataSaver || isBackgroundMode
-            ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+            ? 'bg-gray-300 dark:bg-zinc-700 text-gray-500 cursor-not-allowed opacity-50'
             : showVideo 
               ? 'bg-neo-blue text-white' 
-              : 'bg-gray-200 text-gray-400'
+              : 'bg-gray-200 dark:bg-zinc-800 text-gray-400'
         }`}
         title={isDataSaver || isBackgroundMode ? "Disabled in Eco/BG Mode" : "Toggle Video Preview"}
       >
@@ -146,8 +167,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {/* Internet Saver (ECO) Toggle */}
       <button
         onClick={toggleDataSaver}
-        className={`flex h-8 w-10 sm:w-auto items-center justify-center border-2 border-black px-1 text-[10px] sm:text-xs font-bold transition-colors ${
-          isDataSaver ? 'bg-green-500 text-white shadow-neo-xs' : 'bg-white text-black hover:bg-green-100'
+        className={`flex h-8 w-10 sm:w-auto items-center justify-center border-2 border-black dark:border-white px-1 text-[10px] sm:text-xs font-bold transition-colors ${
+          isDataSaver ? 'bg-green-500 text-white shadow-neo-xs dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]' : 'bg-white dark:bg-zinc-800 text-black dark:text-white hover:bg-green-100 dark:hover:bg-green-900'
         }`}
         title="Data Saver Mode (Audio Only)"
       >
@@ -157,8 +178,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {/* Loop Mode */}
       <button
         onClick={() => setLoopMode(loopMode === LoopMode.ONE ? LoopMode.ALL : LoopMode.ONE)}
-        className={`flex h-8 w-8 sm:w-auto items-center justify-center border-2 border-black px-1 text-[10px] sm:text-xs font-bold transition-colors ${
-          loopMode === LoopMode.ONE ? 'bg-neo-pink text-white' : 'bg-white text-black'
+        className={`flex h-8 w-8 sm:w-auto items-center justify-center border-2 border-black dark:border-white px-1 text-[10px] sm:text-xs font-bold transition-colors ${
+          loopMode === LoopMode.ONE ? 'bg-neo-pink text-white shadow-neo-xs dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]' : 'bg-white dark:bg-zinc-800 text-black dark:text-white'
         }`}
         title="Toggle Loop Mode"
       >
@@ -168,7 +189,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {/* Fullscreen Button */}
       <button
         onClick={onToggleFullscreen}
-        className="flex h-8 w-8 sm:w-auto items-center justify-center border-2 border-black bg-white text-black px-1 hover:bg-black hover:text-white transition-colors"
+        className="flex h-8 w-8 sm:w-auto items-center justify-center border-2 border-black dark:border-white bg-white dark:bg-zinc-800 text-black dark:text-white px-1 hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-colors"
         title="Fullscreen"
       >
          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
@@ -183,7 +204,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
          <select
             value={audioQuality}
             onChange={(e) => setAudioQuality(e.target.value as AudioQuality)}
-            className="h-8 w-14 sm:w-auto border-2 border-black bg-gray-100 px-0 sm:px-1 text-[10px] sm:text-xs font-bold focus:outline-none text-gray-700"
+            className="h-8 w-14 sm:w-auto border-2 border-black dark:border-white bg-gray-100 dark:bg-zinc-800 px-0 sm:px-1 text-[10px] sm:text-xs font-bold focus:outline-none text-gray-700 dark:text-gray-300"
             title="Audio Quality Preference"
          >
            <option value={AudioQuality.LOW}>Low (Audio)</option>
@@ -195,7 +216,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         <select
           value={videoQuality}
           onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}
-          className="h-8 w-14 sm:w-auto border-2 border-black bg-white px-0 sm:px-1 text-[10px] sm:text-xs font-bold focus:outline-none"
+          className="h-8 w-14 sm:w-auto border-2 border-black dark:border-white bg-white dark:bg-zinc-800 text-black dark:text-white px-0 sm:px-1 text-[10px] sm:text-xs font-bold focus:outline-none"
           title="Video Quality"
         >
           <option value={VideoQuality.ZERO}>10p (Low)</option>

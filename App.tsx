@@ -45,6 +45,10 @@ const App: React.FC = () => {
 
   // Settings
   const [showVideo, setShowVideo] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('neo_music_dark_mode');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [videoQuality, setVideoQuality] = useState<VideoQuality>(VideoQuality.MEDIUM);
   const [audioQuality, setAudioQuality] = useState<AudioQuality>(AudioQuality.MID);
   const [isDataSaver, setIsDataSaver] = useState(false);
@@ -104,6 +108,16 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('neo_music_playlists', JSON.stringify(savedPlaylists));
   }, [savedPlaylists]);
+
+  // Dark Mode Persistence & Class Toggle
+  useEffect(() => {
+    localStorage.setItem('neo_music_dark_mode', JSON.stringify(isDarkMode));
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   // Update refs whenever state changes
   useEffect(() => {
@@ -658,7 +672,7 @@ const App: React.FC = () => {
     : videoQuality;
 
   return (
-    <div className="flex h-[100svh] w-full flex-col overflow-hidden font-mono text-black selection:bg-neo-pink selection:text-white">
+    <div className="flex h-[100svh] w-full flex-col overflow-hidden font-mono text-black dark:text-white selection:bg-neo-pink selection:text-white transition-colors duration-300">
       
       {/* GHOST PLAYER */}
       <audio 
@@ -696,10 +710,10 @@ const App: React.FC = () => {
               </div>
            )}
 
-           {modalMode === 'ADD_TO_PLAYLIST' && selectedVideoForAdd && (
-              <div className="w-full max-w-sm bg-white border-4 border-black shadow-neo p-4 animate-in fade-in zoom-in duration-200 max-h-[80vh] flex flex-col">
+            {modalMode === 'ADD_TO_PLAYLIST' && selectedVideoForAdd && (
+              <div className="w-full max-w-sm bg-white dark:bg-zinc-900 border-4 border-black dark:border-white shadow-neo dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] p-4 animate-in fade-in zoom-in duration-200 max-h-[80vh] flex flex-col">
                  <h2 className="font-display text-xl font-black mb-2 uppercase">Add to Library</h2>
-                 <p className="font-mono text-xs mb-4 truncate border-b-2 border-gray-200 pb-2">
+                 <p className="font-mono text-xs mb-4 truncate border-b-2 border-gray-200 dark:border-zinc-700 pb-2">
                    {selectedVideoForAdd.title}
                  </p>
                  
@@ -709,7 +723,7 @@ const App: React.FC = () => {
                         setPlaylistFormName(''); // Clear name so user can type custom name
                         setModalMode('CREATE_PLAYLIST');
                       }}
-                      className="w-full flex items-center justify-center gap-2 border-2 border-black border-dashed p-3 hover:bg-neo-yellow font-bold text-sm"
+                      className="w-full flex items-center justify-center gap-2 border-2 border-black dark:border-white border-dashed p-3 hover:bg-neo-yellow dark:hover:text-black font-bold text-sm"
                     >
                       <span className="text-xl">+</span> Create New Playlist
                     </button>
@@ -718,17 +732,17 @@ const App: React.FC = () => {
                       <button
                         key={pl.id}
                         onClick={() => addVideoToPlaylist(pl.id)}
-                        className="text-left border-2 border-black p-3 hover:bg-neo-green font-bold text-sm flex justify-between items-center group"
+                        className="text-left border-2 border-black dark:border-white p-3 hover:bg-neo-green dark:hover:text-black font-bold text-sm flex justify-between items-center group"
                       >
                         <span className="truncate">{pl.name}</span>
-                        <span className="text-[10px] bg-black text-white px-1 group-hover:bg-white group-hover:text-black">
+                        <span className="text-[10px] bg-black dark:bg-white text-white dark:text-black px-1 group-hover:bg-white dark:group-hover:bg-black group-hover:text-black dark:group-hover:text-white">
                           {pl.videos.length}
                         </span>
                       </button>
                     ))}
                  </div>
                  
-                 <button onClick={() => setModalMode('NONE')} className="w-full py-2 border-2 border-black font-bold hover:bg-red-500 hover:text-white">CLOSE</button>
+                 <button onClick={() => setModalMode('NONE')} className="w-full py-2 border-2 border-black dark:border-white font-bold hover:bg-red-500 hover:text-white">CLOSE</button>
               </div>
            )}
         </div>
@@ -755,36 +769,36 @@ const App: React.FC = () => {
         
         {/* SIDEBAR (Library) - Desktop */}
         <aside 
-          className={`hidden flex-col border-r-4 border-black bg-white transition-[width,opacity] duration-300 ease-in-out md:flex ${
+          className={`hidden flex-col border-r-4 border-black dark:border-white bg-white dark:bg-zinc-900 transition-[width,opacity,background-color] duration-300 ease-in-out md:flex ${
             isDesktopSidebarOpen ? 'w-96 opacity-100' : 'w-0 opacity-0 overflow-hidden border-r-0'
           }`}
         >
-          <div className="border-b-4 border-black bg-neo-yellow p-6">
-            <h1 className="font-display text-2xl font-black uppercase tracking-tighter">
+          <div className="border-b-4 border-black dark:border-white bg-neo-yellow p-6">
+            <h1 className="font-display text-2xl font-black uppercase tracking-tighter text-black">
               NEO<span className="text-neo-pink">.</span>MUSIC
             </h1>
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-6">
              <div>
-               <div className="flex justify-between items-center mb-2 border-b-2 border-black pb-1">
+               <div className="flex justify-between items-center mb-2 border-b-2 border-black dark:border-white pb-1">
                  <h3 className="font-display font-black text-lg">LIBRARY</h3>
                  <button onClick={handleCreatePlaylist} className="text-xl font-bold hover:text-neo-blue" title="Create Playlist">+</button>
                </div>
                
                {savedPlaylists.length === 0 ? (
-                 <p className="text-xs text-gray-500 font-bold italic">No saved playlists.</p>
+                 <p className="text-xs text-gray-500 dark:text-gray-400 font-bold italic">No saved playlists.</p>
                ) : (
                  <div className="flex flex-col gap-2">
                    {savedPlaylists.map(pl => (
-                     <div key={pl.id} className="group flex items-center justify-between border-2 border-transparent hover:border-black hover:bg-gray-100 p-1 cursor-pointer" onClick={() => loadPlaylistToQueue(pl)}>
+                     <div key={pl.id} className="group flex items-center justify-between border-2 border-transparent hover:border-black dark:hover:border-white hover:bg-gray-100 dark:hover:bg-zinc-800 p-1 cursor-pointer" onClick={() => loadPlaylistToQueue(pl)}>
                         <div className="truncate">
                           <span className="font-bold text-sm block truncate">{pl.name}</span>
-                          <span className="text-[10px] text-gray-500">{pl.videos.length} tracks</span>
+                          <span className="text-[10px] text-gray-500 dark:text-gray-400">{pl.videos.length} tracks</span>
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <button onClick={(e) => handleEditPlaylist(e, pl)} className="text-[10px] border border-black px-1 hover:bg-neo-yellow">EDIT</button>
-                           <button onClick={(e) => handleDeletePlaylist(e, pl.id)} className="text-[10px] border border-black px-1 hover:bg-red-500 hover:text-white">DEL</button>
+                           <button onClick={(e) => handleEditPlaylist(e, pl)} className="text-[10px] border border-black dark:border-white px-1 hover:bg-neo-yellow dark:hover:text-black">EDIT</button>
+                           <button onClick={(e) => handleDeletePlaylist(e, pl.id)} className="text-[10px] border border-black dark:border-white px-1 hover:bg-red-500 hover:text-white">DEL</button>
                         </div>
                      </div>
                    ))}
@@ -794,7 +808,7 @@ const App: React.FC = () => {
 
              {/* CURRENT QUEUE */}
              <div className="flex-1 flex flex-col min-h-0">
-               <div className="mb-2 border-b-2 border-black pb-1">
+               <div className="mb-2 border-b-2 border-black dark:border-white pb-1">
                  <h3 className="font-display font-black text-lg">NOW PLAYING</h3>
                </div>
                <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -812,9 +826,9 @@ const App: React.FC = () => {
         </aside>
 
         {/* MAIN CONTENT */}
-        <main className="flex flex-1 flex-col bg-[#e5e7eb] relative min-w-0">
+        <main className="flex flex-1 flex-col bg-[#e5e7eb] dark:bg-zinc-950 relative min-w-0 transition-colors duration-300">
           {/* Top Bar: Search */}
-          <div className="sticky top-0 z-40 w-full border-b-4 border-black bg-white p-2 sm:p-4">
+          <div className="sticky top-0 z-40 w-full border-b-4 border-black dark:border-white bg-white dark:bg-zinc-900 p-2 sm:p-4 transition-colors duration-300">
             <div className="flex items-center gap-2">
                 
                 {/* Mobile Menu Button */}
@@ -854,7 +868,7 @@ const App: React.FC = () => {
                             onFocus={() => setShowSuggestions(true)}
                             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                             placeholder="SEARCH..."
-                            className="w-full flex-1 border-2 sm:border-4 border-black bg-white p-2 font-bold uppercase outline-none placeholder:text-gray-400 focus:bg-neo-yellow focus:placeholder:text-black text-sm sm:text-base"
+                            className="w-full flex-1 border-2 sm:border-4 border-black dark:border-white bg-white dark:bg-zinc-800 p-2 font-bold uppercase outline-none placeholder:text-gray-400 focus:bg-neo-yellow dark:focus:bg-neo-yellow dark:focus:text-black focus:placeholder:text-black text-sm sm:text-base transition-colors"
                             autoComplete="off"
                         />
                         <button
@@ -867,11 +881,11 @@ const App: React.FC = () => {
                     </form>
 
                     {showSuggestions && suggestions.length > 0 && (
-                        <div className="absolute top-full left-0 mt-1 w-full border-4 border-black bg-white shadow-neo z-50 max-h-60 overflow-y-auto">
+                        <div className="absolute top-full left-0 mt-1 w-full border-4 border-black dark:border-white bg-white dark:bg-zinc-800 shadow-neo dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] z-50 max-h-60 overflow-y-auto">
                             {suggestions.map((suggestion, index) => (
                                 <div
                                     key={index}
-                                    className="cursor-pointer border-b-2 border-gray-100 p-2 text-sm font-bold uppercase hover:bg-neo-pink hover:text-white last:border-0"
+                                    className="cursor-pointer border-b-2 border-gray-100 dark:border-zinc-700 p-2 text-sm font-bold uppercase hover:bg-neo-pink hover:text-white last:border-0"
                                     onMouseDown={() => handleSuggestionClick(suggestion)}
                                 >
                                     {suggestion}
@@ -885,27 +899,27 @@ const App: React.FC = () => {
 
           {/* MOBILE DRAWER (For Library) */}
           {isMobileSidebarOpen && (
-            <div className="md:hidden absolute inset-0 z-50 bg-white flex flex-col p-4 animate-in slide-in-from-left duration-200">
+            <div className="md:hidden absolute inset-0 z-50 bg-white dark:bg-zinc-900 flex flex-col p-4 animate-in slide-in-from-left duration-200">
                {/* ... Mobile Sidebar Content ... */}
-               <div className="flex justify-between items-center mb-6 border-b-4 border-black pb-2">
+               <div className="flex justify-between items-center mb-6 border-b-4 border-black dark:border-white pb-2">
                  <h2 className="font-display font-black text-2xl">LIBRARY</h2>
-                 <button onClick={() => setIsMobileSidebarOpen(false)} className="border-2 border-black px-2 font-bold bg-red-500 text-white">X</button>
+                 <button onClick={() => setIsMobileSidebarOpen(false)} className="border-2 border-black dark:border-white px-2 font-bold bg-red-500 text-white">X</button>
                </div>
                
                <div className="flex-1 overflow-y-auto">
-                 <button onClick={handleCreatePlaylist} className="flex justify-center items-center w-full border-2 border-black border-dashed p-3 mb-4 font-bold bg-neo-yellow shadow-neo-xs active:shadow-none active:translate-y-1 transition-all">
+                 <button onClick={handleCreatePlaylist} className="flex justify-center items-center w-full border-2 border-black dark:border-white border-dashed p-3 mb-4 font-bold bg-neo-yellow dark:text-black shadow-neo-xs active:shadow-none active:translate-y-1 transition-all">
                     + NEW PLAYLIST
                  </button>
                  
                  {savedPlaylists.map(pl => (
-                   <div key={pl.id} className="border-2 border-black p-3 mb-2 flex justify-between items-center bg-gray-50" onClick={() => loadPlaylistToQueue(pl)}>
+                   <div key={pl.id} className="border-2 border-black dark:border-white p-3 mb-2 flex justify-between items-center bg-gray-50 dark:bg-zinc-800" onClick={() => loadPlaylistToQueue(pl)}>
                       <div>
                         <div className="font-bold">{pl.name}</div>
-                        <div className="text-xs text-gray-500">{pl.videos.length} Tracks</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{pl.videos.length} Tracks</div>
                       </div>
                       <button 
                         onClick={(e) => { e.stopPropagation(); loadPlaylistToQueue(pl); setIsMobileSidebarOpen(false); }}
-                        className="bg-black text-white px-3 py-1 text-xs font-bold"
+                        className="bg-black dark:bg-white text-white dark:text-black px-3 py-1 text-xs font-bold"
                       >
                         PLAY
                       </button>
@@ -920,7 +934,7 @@ const App: React.FC = () => {
           {/* Content Area */}
           <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 custom-scrollbar">
             <div className="mx-auto max-w-4xl">
-              <div className="mb-4 sm:mb-6 w-full border-4 border-black bg-black shadow-neo">
+              <div className="mb-4 sm:mb-6 w-full border-4 border-black dark:border-white bg-black shadow-neo dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)]">
                 {currentVideo && !isLoadingNewQueue ? (
                     <PlayerScreen 
                       key={currentVideo.id}
@@ -952,7 +966,7 @@ const App: React.FC = () => {
               </div>
               
               <div className="md:hidden pb-4">
-                 <div className="mb-2 font-display font-black border-b-2 border-black">NOW PLAYING</div>
+                 <div className="mb-2 font-display font-black border-b-2 border-black dark:border-white">NOW PLAYING</div>
                  <Playlist 
                     videos={playlist} 
                     currentIndex={currentIndex} 
@@ -966,10 +980,10 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      <footer className="z-50 flex-none border-t-4 border-black bg-white p-2 pb-[calc(env(safe-area-inset-bottom)+2rem)] md:pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)] transition-all">
+      <footer className="z-50 flex-none border-t-4 border-black dark:border-white bg-white dark:bg-zinc-900 p-2 pb-[calc(env(safe-area-inset-bottom)+2rem)] md:pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[0px_-4px_0px_0px_rgba(255,255,255,1)] transition-all duration-300">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
           <div className="w-full sm:mb-2 sm:w-64 sm:flex-none">
-             <div className="overflow-hidden border-2 border-black bg-neo-yellow p-1 sm:p-2">
+             <div className="overflow-hidden border-2 border-black dark:border-white bg-neo-yellow p-1 sm:p-2">
                 <div className="whitespace-nowrap font-mono text-xs sm:text-sm font-bold text-black animate-marquee">
                   {currentVideo ? `${currentVideo.title} /// ${currentVideo.channelTitle}` : "WAITING FOR INPUT..."}
                 </div>
@@ -992,6 +1006,8 @@ const App: React.FC = () => {
                 <SettingsPanel 
                   showVideo={showVideo} 
                   setShowVideo={setShowVideo}
+                  isDarkMode={isDarkMode}
+                  setIsDarkMode={setIsDarkMode}
                   videoQuality={videoQuality}
                   setVideoQuality={setVideoQuality}
                   audioQuality={audioQuality}

@@ -235,7 +235,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
   return (
     <div 
       ref={containerRef}
-      className="relative w-full aspect-video bg-black border-4 border-black overflow-hidden group"
+      className="relative w-full aspect-video bg-black border-4 border-black dark:border-white overflow-hidden group shadow-neo dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)]"
     >
       {/* Thumbnail Layer */}
       <div 
@@ -252,7 +252,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
           )}
           <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"></div>
           <div className="z-10 text-center p-4">
-              <div className="inline-block border-4 border-black bg-white px-4 py-2 font-display font-black text-xl sm:text-2xl uppercase tracking-tighter shadow-neo">
+              <div className="inline-block border-4 border-black dark:border-white bg-white dark:bg-zinc-800 dark:text-white px-4 py-2 font-display font-black text-xl sm:text-2xl uppercase tracking-tighter shadow-neo dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)]">
                 NEO.MUSIC 
               </div>
           </div>
@@ -278,7 +278,7 @@ const PlayerScreen: React.FC<PlayerScreenProps> = ({
       {isFullscreen && (
         <button
           onClick={handleExitFullscreen}
-          className="absolute top-4 right-4 z-50 flex items-center gap-2 border-4 border-black bg-white px-4 py-2 font-display font-black uppercase text-black shadow-neo hover:bg-red-500 hover:text-white transition-all hover:scale-105 active:scale-95"
+          className="absolute top-4 right-4 z-50 flex items-center gap-2 border-4 border-black dark:border-white bg-white dark:bg-zinc-800 px-4 py-2 font-display font-black uppercase text-black dark:text-white shadow-neo dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] hover:bg-red-500 hover:text-white transition-all hover:scale-105 active:scale-95"
         >
           <span>EXIT</span>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={4} stroke="currentColor" className="w-5 h-5">
